@@ -1,0 +1,249 @@
+/* Multi-Picker Cell Component Styles */
+
+td.multi-picker-cell,
+td.affected-items-td,
+td.control-items-td {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+th.affected-items-th,
+th.control-items-th {
+  padding-right: 0;
+  padding-left: 0;
+  text-align: center;
+}
+
+.multi-picker-cell {
+  position: relative;
+  width: 100%;
+  outline: none;
+}
+
+.multi-picker-cell:focus {
+  outline: 1px solid var(--accent-blue, #007acc);
+  outline-offset: -2px;
+  border-radius: 3px;
+  background-color: var(--bg-primary);
+}
+
+.multi-picker-compact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  min-height: 24px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.multi-picker-compact:hover {
+  background-color: var(--bg-hover, #f0f0f0);
+}
+
+.no-items-text {
+  color: var(--text-muted, #999);
+}
+
+.multi-picker-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  max-width: 60px;
+  margin: 0 auto;
+}
+
+.multi-picker-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.multi-picker-badge:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Badge colors - light mode */
+.badge-components {
+  background-color: #e9d5ff;
+  color: #6b21a8;
+}
+
+.badge-dataflows {
+  background-color: #bfdbfe;
+  color: #1e3a8a;
+}
+
+.badge-assets {
+  background-color: #fef08a;
+  color: #854d0e;
+}
+
+.badge-threats {
+  background-color: #fecaca;
+  color: #7f1d1d;
+}
+
+/* Badge colors - dark mode */
+[data-theme="dark"] .badge-components {
+  background-color: #6b21a8;
+  color: #e9d5ff;
+}
+
+[data-theme="dark"] .badge-dataflows {
+  background-color: #1e3a8a;
+  color: #bfdbfe;
+}
+
+[data-theme="dark"] .badge-assets {
+  background-color: #854d0e;
+  color: #fef08a;
+}
+
+[data-theme="dark"] .badge-threats {
+  background-color: #7f1d1d;
+  color: #fecaca;
+}
+
+/* Expanded Panel */
+.multi-picker-expanded {
+  background: var(--bg-primary, white);
+  border-radius: 6px;
+  box-shadow: 0 8px 16px var(--shadow-strong, rgba(0, 0, 0, 0.15));
+  z-index: 10000;
+  padding: 12px;
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  animation: popupFadeIn 0.15s ease-out;
+}
+
+@keyframes popupFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Theme-specific borders and colors */
+.multi-picker-theme-threats {
+  border: 2px solid #dc2626;
+}
+
+.multi-picker-theme-controls {
+  border: 2px solid #15803d;
+}
+
+.multi-picker-expanded.render-upward {
+  transform-origin: bottom left;
+}
+
+.multi-picker-expanded.render-upward {
+  animation: popupFadeInUpward 0.15s ease-out;
+}
+
+@keyframes popupFadeInUpward {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header */
+.multi-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.multi-picker-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Theme-specific title colors */
+.multi-picker-theme-threats .multi-picker-title {
+  color: #dc2626;
+}
+
+.multi-picker-theme-controls .multi-picker-title {
+  color: #15803d;
+}
+
+.multi-picker-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+/* Theme-specific close button colors */
+.multi-picker-theme-threats .multi-picker-close {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.multi-picker-theme-threats .multi-picker-close:hover {
+  background: #dc2626;
+  color: white;
+}
+
+.multi-picker-theme-controls .multi-picker-close {
+  background: #bbf7d0;
+  color: #15803d;
+}
+
+.multi-picker-theme-controls .multi-picker-close:hover {
+  background: #15803d;
+  color: white;
+}
+
+/* Sections */
+.multi-picker-section {
+  margin-bottom: 12px;
+}
+
+.multi-picker-section:last-child {
+  margin-bottom: 0;
+}
+
+.multi-picker-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  color: var(--text-tertiary, #6b7280);
+}

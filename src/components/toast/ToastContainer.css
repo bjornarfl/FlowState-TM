@@ -1,0 +1,141 @@
+.toast-container {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease-out;
+  min-width: 300px;
+  border-left: 4px solid;
+}
+
+.toast-info {
+  border-left-color: #3b82f6;
+}
+
+.toast-success {
+  border-left-color: #10b981;
+}
+
+.toast-error {
+  border-left-color: #ef4444;
+}
+
+.toast-loading {
+  border-left-color: #f59e0b;
+}
+
+.toast-warning {
+  border-left-color: #f59e0b;
+}
+
+.toast-icon {
+  font-size: 20px;
+  font-weight: bold;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.toast-info .toast-icon {
+  color: #3b82f6;
+}
+
+.toast-success .toast-icon {
+  color: #10b981;
+}
+
+.toast-error .toast-icon {
+  color: #ef4444;
+}
+
+.toast-loading .toast-icon {
+  color: #f59e0b;
+  animation: spin 1s linear infinite;
+}
+
+.toast-warning .toast-icon {
+  color: #f59e0b;
+}
+
+.toast-message {
+  flex: 1;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.toast-dismiss:hover {
+  color: #1f2937;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .toast {
+    background: #1f2937;
+  }
+
+  .toast-message {
+    color: #f3f4f6;
+  }
+
+  .toast-dismiss {
+    color: #9ca3af;
+  }
+
+  .toast-dismiss:hover {
+    color: #f3f4f6;
+  }
+}

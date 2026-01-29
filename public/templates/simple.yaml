@@ -1,0 +1,111 @@
+schema_version: '1.0'
+name: Simple Web Application
+description: A basic web application with database backend
+
+# Assets
+# Represents data or resources that need protection.
+assets:
+  - ref: user-data
+    name: User Data
+    description: Personal information and credentials
+
+  - ref: session-info
+    name: Session Information
+    description: User session tokens and related data
+
+# Components
+# Represents the objects in a threat model - parts of the system such as users, applications, or databases.
+# Is one of three types: internal components, external dependencies, or data stores.
+components:
+  - ref: user
+    name: User
+    component_type: external_dependency
+    description: End user accessing the application
+    x: 0
+    y: 0
+
+  - ref: web-app
+    name: Web Application
+    component_type: internal
+    description: Node.js web application
+    assets: [user-data, session-info]
+    x: 300
+    y: 0
+
+  - ref: database
+    name: Database
+    component_type: data_store
+    description: PostgreSQL database
+    assets: [user-data]
+    x: 300
+    y: 150
+
+# Data Flows
+# Represents a connection between two components with data flowing between them.
+data_flows:
+  - ref: user<->web-app
+    source: user
+    destination: web-app
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: HTTP
+
+  - ref: web-app->database
+    source: web-app
+    destination: database
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: SQL
+
+# Boundaries
+# Represents trust boundaries in the system.
+boundaries:
+  - ref: internal-network
+    name: Internal Network
+    description: Trusted internal network
+    components: [web-app, database]
+    width: 180
+    height: 250
+    x: 275
+    y: -25
+
+# Threats
+# Represents potential security threats to the system.
+threats:
+  - ref: sql-injection
+    name: SQL Injection
+    description: |
+      Attacker injects malicious SQL through user inputs
+      This can lead to unauthorized data access, modification, or deletion
+      Common attack vectors include login forms and search fields
+    affected_components: [web-app]
+    affected_data_flows: [user<->web-app]
+
+  - ref: xss
+    name: Cross-Site Scripting (XSS)
+    description: |
+      Attacker injects malicious scripts into web pages
+      Can be used to steal session tokens or redirect users to malicious sites
+    affected_components: [web-app]
+    affected_data_flows: [user<->web-app]
+
+# Controls
+# Represents security measures implemented to mitigate threats.
+controls:
+  - ref: input-validation
+    name: Input Validation
+    description: |
+      Validate and sanitize all user inputs
+      - Check data types and formats
+      - Whitelist allowed characters
+      - Encode output appropriately
+    mitigates: [sql-injection, xss]
+    implemented_in: [web-app]
+    
+  - ref: parameterized-queries
+    name: Parameterized Queries
+    description: Use prepared statements for all database queries
+    mitigates: [sql-injection]
+    implemented_in: [web-app]

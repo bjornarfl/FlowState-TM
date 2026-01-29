@@ -1,0 +1,323 @@
+schema_version: '1.0'
+name: Mobile Application with Backend
+description: A mobile application that communicates with backend services to provide functionality to end users.
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: user_data
+    name: User Data
+    description: Personal information, preferences, and activity data of mobile app users including email, profile information, and usage patterns.
+  
+  - ref: auth_tokens
+    name: Authentication Tokens
+    description: JWT tokens, session tokens, or OAuth tokens used to authenticate users and authorize access to backend services.
+  
+  - ref: api_keys
+    name: API Keys
+    description: Keys embedded in the mobile app to authenticate the app itself with backend services and third-party APIs.
+  
+  - ref: app_binary
+    name: Application Binary
+    description: The compiled mobile application package (APK/IPA) that can be reverse engineered to extract secrets or understand app logic.
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components:
+  - ref: mobile_app
+    name: Mobile Application
+    component_type: external_dependency
+    x: -250
+    y: 0
+    description: Native or hybrid mobile application running on user devices (iOS/Android)
+    assets: [auth_tokens, api_keys, app_binary, user_data]
+
+  - ref: mobile_user
+    name: Mobile User
+    component_type: external_dependency
+    x: -250
+    y: -120
+    description: End user interacting with the mobile application
+
+  - ref: api_gateway
+    name: API Gateway
+    component_type: internal
+    x: -1
+    y: 9
+    description: Entry point for all API requests from mobile app, handles routing, rate limiting, and initial validation
+    assets: [auth_tokens, user_data]
+
+  - ref: auth_service
+    name: Authentication Service
+    component_type: internal
+    x: 0
+    y: -120
+    description: Handles user authentication, token generation, and validation
+    assets: [auth_tokens, user_data]
+
+  - ref: application_backend
+    name: Application Backend
+    component_type: internal
+    x: 0
+    y: 132
+    description: Core business logic and application services
+    assets: [user_data]
+
+  - ref: database
+    name: Database
+    component_type: data_store
+    x: 189
+    y: 9
+    description: Persistent storage for user data and application state
+    assets: [user_data]
+
+  - ref: analytics_service
+    name: Analytics Service
+    component_type: external_dependency
+    x: -249
+    y: 145
+    description: Third-party service for tracking app usage and user behavior
+    assets: [user_data]
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: mobile_user->mobile_app
+    source: mobile_user
+    destination: mobile_app
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+    label: User Input
+
+  - ref: mobile_app->api_gateway
+    source: mobile_app
+    destination: api_gateway
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: API Requests
+
+  - ref: mobile_app<->auth_service
+    source: mobile_app
+    destination: auth_service
+    source_point: top-3
+    destination_point: left-2
+    direction: bidirectional
+    label: Login/Auth
+
+  - ref: api_gateway<->application_backend
+    source: api_gateway
+    destination: application_backend
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+    label: Validated Requests
+
+  - ref: application_backend<->database
+    source: application_backend
+    destination: database
+    source_point: right-2
+    destination_point: bottom-2
+    direction: bidirectional
+    label: Data Operations
+
+  - ref: auth_service->api_gateway
+    source: auth_service
+    destination: api_gateway
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Token Validation
+
+  - ref: mobile_app->analytics_service
+    source: mobile_app
+    destination: analytics_service
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Usage Data
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: backend_infrastructure
+    name: Backend Infrastructure
+    x: -20
+    y: -140
+    width: 365
+    height: 357
+    components: [api_gateway, auth_service, application_backend, database]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: reverse_engineering
+    name: Reverse Engineering
+    description: |
+      An attacker decompiles the mobile application to extract hardcoded secrets, 
+      API keys, encryption keys, or understand the application logic to find vulnerabilities. 
+      This is easier on Android due to Java bytecode but also possible on iOS applications.
+    affected_components: [mobile_app]
+    affected_assets: [api_keys, app_binary]
+
+  - ref: insecure_data_storage
+    name: Insecure Data Storage
+    description: |
+      Sensitive data stored on the mobile device without proper encryption can be 
+      accessed by an attacker with physical access to the device, through malware, 
+      or via device backups. This includes tokens, user credentials, or cached user data.
+    affected_components: [mobile_app]
+    affected_assets: [auth_tokens, user_data]
+
+  - ref: man_in_the_middle
+    name: Man-in-the-Middle Attack
+    description: |
+      An attacker intercepts network traffic between the mobile app and backend services, 
+      either through compromised WiFi networks or by installing a malicious certificate 
+      on the device. This allows them to read or modify data in transit.
+    affected_data_flows: [mobile_app->api_gateway, mobile_app<->auth_service]
+    affected_assets: [auth_tokens, user_data]
+
+  - ref: token_theft
+    name: Token Theft
+    description: |
+      Authentication tokens are stolen through XSS, insecure storage, or interception, 
+      allowing an attacker to impersonate the user and access their account and data.
+    affected_components: [mobile_app, api_gateway, auth_service]
+    affected_assets: [auth_tokens]
+
+  - ref: api_abuse
+    name: API Abuse
+    description: |
+      An attacker floods the API with requests, causing denial of service, or 
+      systematically scrapes data by calling APIs excessively. Lack of rate limiting 
+      or authentication on certain endpoints enables this attack.
+    affected_components: [api_gateway, application_backend]
+    affected_data_flows: [mobile_app->api_gateway]
+
+  - ref: injection_attacks
+    name: Injection Attacks
+    description: |
+      An attacker sends malicious input through the mobile app that is not properly 
+      validated or sanitized, leading to SQL injection, NoSQL injection, or command 
+      injection in the backend systems.
+    affected_components: [api_gateway, application_backend, database]
+    affected_data_flows: [mobile_app->api_gateway, api_gateway<->application_backend]
+    affected_assets: [user_data]
+
+  - ref: broken_authentication
+    name: Broken Authentication
+    description: |
+      Weak authentication mechanisms, improper session management, or failure to 
+      invalidate tokens allow attackers to compromise user accounts through 
+      credential stuffing, brute force, or session hijacking.
+    affected_components: [auth_service, mobile_app]
+    affected_assets: [auth_tokens, user_data]
+
+  - ref: excessive_permissions
+    name: Excessive Permissions
+    description: |
+      The mobile app requests more device permissions than necessary (camera, location, 
+      contacts, etc.), increasing the attack surface and privacy risks if the app is 
+      compromised or malicious.
+    affected_components: [mobile_app]
+    affected_assets: [user_data]
+
+  - ref: insecure_third_party_libraries
+    name: Insecure Third-Party Libraries
+    description: |
+      The mobile app or backend uses third-party libraries with known vulnerabilities 
+      that can be exploited by attackers to gain unauthorized access or compromise data.
+    affected_components: [mobile_app, application_backend]
+
+  - ref: insufficient_logging
+    name: Insufficient Logging and Monitoring
+    description: |
+      Lack of proper logging and monitoring makes it difficult to detect security 
+      incidents, track unauthorized access, or perform forensic analysis after a breach.
+    affected_components: [api_gateway, application_backend, auth_service]
+
+  - ref: data_leakage_to_third_party
+    name: Data Leakage to Third Party
+    description: |
+      Sensitive user data is sent to third-party analytics or advertising services 
+      without proper anonymization or user consent, leading to privacy violations.
+    affected_data_flows: [mobile_app->analytics_service]
+    affected_components: [analytics_service, mobile_app]
+    affected_assets: [user_data]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: code_obfuscation
+    name: Code Obfuscation
+    description: Apply code obfuscation and minification to make reverse engineering more difficult. Use tools like ProGuard for Android and native compilation for iOS.
+    mitigates: [reverse_engineering]
+    implemented_in: [mobile_app]
+
+  - ref: certificate_pinning
+    name: Certificate Pinning
+    description: Implement certificate pinning to prevent man-in-the-middle attacks by validating the server's certificate against a known good certificate.
+    mitigates: [man_in_the_middle]
+    implemented_in: [mobile_app]
+
+  - ref: secure_storage
+    name: Secure Storage
+    description: Use platform-specific secure storage mechanisms (Keychain for iOS, Keystore for Android) to store sensitive data like tokens and credentials.
+    mitigates: [insecure_data_storage, token_theft]
+    implemented_in: [mobile_app]
+
+  - ref: tls_encryption
+    name: TLS Encryption
+    description: Enforce TLS 1.3 or higher for all communications between mobile app and backend services to protect data in transit.
+    mitigates: [man_in_the_middle]
+    implemented_in: [api_gateway, mobile_app]
+
+  - ref: token_expiration
+    name: Token Expiration
+    description: Implement short-lived access tokens with refresh token mechanism to limit the window of opportunity if tokens are compromised.
+    mitigates: [token_theft, broken_authentication]
+    implemented_in: [auth_service]
+
+  - ref: rate_limiting
+    name: Rate Limiting
+    description: Implement rate limiting and throttling at the API gateway to prevent abuse and denial of service attacks.
+    mitigates: [api_abuse, broken_authentication]
+    implemented_in: [api_gateway]
+
+  - ref: input_validation
+    name: Input Validation
+    description: Validate and sanitize all input from the mobile app before processing to prevent injection attacks. Use parameterized queries for database operations.
+    mitigates: [injection_attacks]
+    implemented_in: [api_gateway, application_backend]
+
+  - ref: mfa
+    name: Multi-Factor Authentication
+    description: Implement multi-factor authentication for sensitive operations to add an additional layer of security beyond passwords.
+    mitigates: [broken_authentication, token_theft]
+    implemented_in: [auth_service]
+
+  - ref: least_privilege_permissions
+    name: Least Privilege Permissions
+    description: Request only the minimum necessary device permissions required for app functionality and explain to users why each permission is needed.
+    mitigates: [excessive_permissions]
+    implemented_in: [mobile_app]
+
+  - ref: dependency_scanning
+    name: Dependency Scanning
+    description: Regularly scan and update third-party libraries and dependencies to patch known vulnerabilities. Use tools like OWASP Dependency Check.
+    mitigates: [insecure_third_party_libraries]
+    implemented_in: [mobile_app, application_backend]
+
+  - ref: security_monitoring
+    name: Security Monitoring
+    description: Implement comprehensive logging and monitoring of authentication events, API calls, and suspicious activities with alerts for anomalies.
+    mitigates: [insufficient_logging, api_abuse, broken_authentication]
+    implemented_in: [api_gateway, application_backend, auth_service]
+
+  - ref: data_minimization
+    name: Data Minimization
+    description: Minimize the data sent to third-party services, anonymize analytics data, and implement proper consent mechanisms for data sharing.
+    mitigates: [data_leakage_to_third_party]
+    implemented_in: [mobile_app]
+
+  - ref: api_key_protection
+    name: API Key Protection
+    description: Avoid hardcoding API keys in the app. Use backend proxy services for sensitive API calls and implement key rotation policies.
+    mitigates: [reverse_engineering]
+    implemented_in: [mobile_app, api_gateway]

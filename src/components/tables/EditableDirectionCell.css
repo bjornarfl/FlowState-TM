@@ -1,0 +1,73 @@
+.always-editable-direction-cell {
+  position: relative;
+  width: 100%;
+  outline: none;
+  vertical-align: top;
+}
+
+.direction-display {
+  width: 100%;
+  padding: 8px;
+  border-radius: 3px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.direction-display:hover {
+  border: 1px solid var(--border-color-strong);
+}
+
+.always-editable-direction-cell:focus .direction-display {
+  outline: none;
+  border-color: var(--accent-blue);
+  background-color: var(--bg-primary);
+  border-radius: 3px;
+}
+
+.direction-arrow {
+  font-size: 10px;
+  color: #666;
+  margin-left: 8px;
+}
+
+.direction-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.direction-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.1s;
+}
+
+.direction-option:hover,
+.direction-option.highlighted {
+  background-color: var(--bg-secondary);
+}
+
+.direction-option.selected {
+  background-color: var(--bg-hover);
+  font-weight: 500;
+}

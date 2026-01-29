@@ -1,0 +1,121 @@
+/* Boundary Node Styles */
+
+.boundary-node {
+  width: 100%;
+  height: 100%;
+  border: 2px dashed #dc2626;
+  background: transparent;
+  position: relative;
+  cursor: move;
+  pointer-events: none;
+}
+
+/* Darker border when selected */
+.react-flow__node.selected .boundary-node {
+  border-color: #991b1b;
+  border-width: 2px;
+}
+
+.boundary-label-container {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 10;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.boundary-label {
+  font-weight: 600;
+  font-size: 11px;
+  color: #dc2626;
+  background: transparent;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: default;
+  user-select: none;
+  border: none;
+}
+
+.boundary-edit-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #dc2626;
+  transition: opacity 0.15s ease;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boundary-edit-button.visible {
+  opacity: 0.7;
+  pointer-events: auto;
+}
+
+.boundary-edit-button.visible:hover {
+  opacity: 1;
+}
+
+.boundary-edit-button.visible:active {
+  transform: scale(0.9);
+}
+
+.boundary-label-input {
+  font-weight: 600;
+  font-size: 11px;
+  color: #dc2626;
+  background: var(--bg-primary, #fff);
+  padding: 2px 4px;
+  border: 2px solid #dc2626;
+  border-radius: 3px;
+  font-family: inherit;
+  min-width: 80px;
+}
+
+.boundary-label-input:focus {
+  outline: none;
+  box-shadow: 0 0 4px rgba(220, 38, 38, 0.3);
+}
+
+/* Ensure boundary nodes are selectable but allow child nodes to be interactive */
+.react-flow__node-boundaryNode {
+  pointer-events: all;
+}
+
+.react-flow__node-boundaryNode .react-flow__node {
+  pointer-events: all;
+}
+
+/* Note: Manual resizing can be enabled by setting resizable property on the node.
+   Currently boundaries auto-size based on contained components. */
+
+/* Resize handles - larger and more visible */
+.boundary-resize-handle {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 3px !important;
+  background: var(--bg-primary, #fff) !important;
+  border: 2px solid #dc2626 !important;
+  opacity: 0.9 !important;
+  transition: all 0.15s ease !important;
+}
+
+.boundary-resize-handle:hover {
+  opacity: 1 !important;
+  background: var(--bg-primary, #fff) !important;
+  transform: scale(1.2);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3) !important;
+}
+
+/* Hide the resize lines - just use the handles */
+.boundary-resize-line {
+  opacity: 0 !important;
+}

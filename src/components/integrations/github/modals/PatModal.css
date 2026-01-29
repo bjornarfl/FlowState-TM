@@ -1,0 +1,149 @@
+.pat-modal {
+  max-width: 480px;
+}
+
+.pat-modal .action-description {
+  background: var(--bg-secondary);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.pat-modal .form-group {
+  margin-bottom: 1rem;
+}
+
+.pat-modal label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pat-modal select,
+.pat-modal input[type='text'],
+.pat-modal input[type='password'] {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.pat-modal select:focus,
+.pat-modal input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-color-muted);
+}
+
+.pat-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pat-input-wrapper input {
+  padding-right: 2.5rem;
+}
+
+.pat-input-wrapper .toggle-visibility {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pat-input-wrapper .toggle-visibility:hover {
+  color: var(--text-primary);
+}
+
+.checkbox-group {
+  margin-top: 1rem;
+}
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: normal !important;
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+
+.pat-error {
+  background: var(--bg-error);
+  color: var(--text-error);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.scopes-info {
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.scopes-info h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.scopes-info p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.scopes-info a {
+  color: var(--accent-color);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.scopes-info a:hover {
+  text-decoration: underline;
+}
+
+.scopes-info ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.scopes-info li {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  font-family: monospace;
+  margin-bottom: 0.25rem;
+}
+
+.scopes-info li:last-child {
+  margin-bottom: 0;
+}

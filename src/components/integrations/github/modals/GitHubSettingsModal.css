@@ -1,0 +1,334 @@
+.github-settings-modal {
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section:last-of-type {
+  border-bottom: none;
+}
+
+.settings-section h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.settings-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem 0;
+}
+
+/* Domain selector */
+.domain-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.domain-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.domain-option:hover {
+  background: var(--bg-secondary);
+}
+
+.domain-option:has(input:checked) {
+  border-color: var(--accent-color);
+  background: var(--accent-color-muted);
+}
+
+.domain-option input[type='radio'] {
+  margin: 0.125rem 0 0 0;
+}
+
+.domain-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.domain-label strong {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.domain-sublabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* PAT Section */
+.pat-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pat-status-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pat-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.pat-stored {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.pat-not-stored {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.toggle-visibility-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-visibility-btn:hover {
+  color: var(--text-primary);
+}
+
+.pat-details {
+  background: var(--bg-secondary);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+}
+
+.pat-details p {
+  margin: 0 0 0.375rem 0;
+  color: var(--text-secondary);
+}
+
+.pat-details p:last-child {
+  margin-bottom: 0;
+}
+
+.pat-details strong {
+  color: var(--text-primary);
+}
+
+.clear-pat-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.pat-hint {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.pat-guide-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--accent-color);
+  text-decoration: none;
+  margin-top: 0.5rem;
+}
+
+.pat-guide-link:hover {
+  text-decoration: underline;
+}
+
+/* PAT Input Form */
+.pat-input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.pat-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pat-input-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pat-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pat-input {
+  flex: 1;
+  padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: monospace;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.15s ease;
+}
+
+.pat-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.pat-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pat-input-toggle {
+  position: absolute;
+  right: 0.5rem;
+}
+
+.pat-persist-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.pat-persist-option input[type='checkbox'] {
+  cursor: pointer;
+}
+
+.pat-error {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--error-bg);
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: var(--error-text);
+}
+
+.pat-input-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.pat-input-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Metadata display */
+.metadata-display {
+  background: var(--bg-secondary);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.metadata-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.metadata-row:last-child {
+  margin-bottom: 0;
+}
+
+.metadata-label {
+  color: var(--text-secondary);
+  min-width: 80px;
+}
+
+.metadata-value {
+  color: var(--text-primary);
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.sync-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.sync-button svg {
+  flex-shrink: 0;
+}
+
+.metadata-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--warning-bg);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--warning-text);
+}
+
+.metadata-warning svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}

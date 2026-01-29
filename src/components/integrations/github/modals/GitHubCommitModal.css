@@ -1,0 +1,426 @@
+.github-commit-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.github-commit-modal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.github-commit-modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.github-commit-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.github-commit-modal-header svg {
+  color: var(--brand-color);
+}
+
+.github-commit-modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.commit-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.375rem;
+}
+
+.commit-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.commit-info-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 90px;
+}
+
+.commit-info-value {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.commit-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.commit-form-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.commit-form-input,
+.commit-form-textarea,
+.commit-form-select {
+  padding: 0.625rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  width: 100%;
+}
+
+.commit-form-textarea {
+  min-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.commit-form-input:focus,
+.commit-form-textarea:focus,
+.commit-form-select:focus {
+  outline: none;
+  border-color: var(--brand-color);
+  box-shadow: 0 0 0 2px var(--brand-color-alpha);
+}
+
+.commit-form-hint {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.commit-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+[data-theme='dark'] .commit-warning {
+  background: #78350f;
+  border-color: #f59e0b;
+}
+
+.commit-warning svg {
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.commit-warning-content {
+  flex: 1;
+}
+
+.commit-warning-title {
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+  color: var(--text-primary);
+}
+
+.commit-warning-message {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.commit-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #fee2e2;
+  border: 1px solid #ef4444;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+[data-theme='dark'] .commit-error {
+  background: #7f1d1d;
+  border-color: #ef4444;
+}
+
+.commit-error svg {
+  color: #ef4444;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.commit-error-message {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.github-commit-modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.github-commit-modal-footer button {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.github-commit-modal-footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.github-commit-modal-footer .cancel-button {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.github-commit-modal-footer .cancel-button:hover:not(:disabled) {
+  background: var(--bg-secondary);
+}
+
+.github-commit-modal-footer .commit-button {
+  background: var(--brand-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.github-commit-modal-footer .commit-button:hover:not(:disabled) {
+  background: var(--brand-color-hover);
+}
+
+.commit-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Selector group styling */
+.github-selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.github-selector-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* Repository search */
+.repo-search-wrapper {
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.repo-search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.repo-search-input .search-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.repo-search-input input[type="text"] {
+  width: 100%;
+  padding: 0.5rem 2.5rem 0.5rem 2.5rem !important;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.repo-search-input input[type="text"]:focus {
+  outline: none;
+  border-color: var(--brand-color);
+  box-shadow: 0 0 0 2px var(--brand-color-alpha);
+}
+
+.repo-search-input input[type="text"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.repo-search-input .clear-search {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  transition: color 0.2s;
+}
+
+.repo-search-input .clear-search:hover {
+  color: var(--text-primary);
+}
+
+/* Select wrapper styling */
+.select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.select-wrapper select {
+  width: 100%;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  appearance: none;
+  cursor: pointer;
+}
+
+.select-wrapper select:focus {
+  outline: none;
+  border-color: var(--brand-color);
+  box-shadow: 0 0 0 2px var(--brand-color-alpha);
+}
+
+.select-wrapper select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.select-wrapper .select-icon {
+  position: absolute;
+  right: 0.5rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.select-wrapper .loading-icon {
+  position: absolute;
+  right: 1.75rem;
+  color: var(--brand-color);
+}
+
+/* Regular input and textarea in selector groups (excluding search inputs) */
+.github-selector-group > input[type="text"],
+.github-selector-group > div > input[type="text"]:not(.repo-search-input input) {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.github-selector-group > input[type="text"]:focus,
+.github-selector-group > div > input[type="text"]:not(.repo-search-input input):focus {
+  outline: none;
+  border-color: var(--brand-color);
+  box-shadow: 0 0 0 2px var(--brand-color-alpha);
+}
+
+.github-selector-group > input[type="text"]:disabled,
+.github-selector-group > div > input[type="text"]:not(.repo-search-input input):disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.github-selector-group textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.github-selector-group textarea:focus {
+  outline: none;
+  border-color: var(--brand-color);
+  box-shadow: 0 0 0 2px var(--brand-color-alpha);
+}
+
+.github-selector-group textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* No results message */
+.no-results {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Spin animation */
+.spin {
+  animation: spin 1s linear infinite;
+}

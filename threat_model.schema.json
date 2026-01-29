@@ -1,0 +1,298 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/threat-model.schema.json",
+  "title": "Threat Model",
+  "description": "Schema for defining threat models with components, data flows, threats, and controls",
+  "type": "object",
+  "required": ["schema_version", "name"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of the threat model schema",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name of the threat model",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the threat model"
+    },
+    "assets": {
+      "type": "array",
+      "description": "Data or resources that need protection",
+      "items": {
+        "$ref": "#/definitions/asset"
+      }
+    },
+    "components": {
+      "type": "array",
+      "description": "Components in the system (internal, external, or data stores)",
+      "items": {
+        "$ref": "#/definitions/component"
+      }
+    },
+    "data_flows": {
+      "type": "array",
+      "description": "Data flows between components",
+      "items": {
+        "$ref": "#/definitions/dataFlow"
+      }
+    },
+    "boundaries": {
+      "type": "array",
+      "description": "Trust boundaries in the system",
+      "items": {
+        "$ref": "#/definitions/boundary"
+      }
+    },
+    "threats": {
+      "type": "array",
+      "description": "Security threats to the system",
+      "items": {
+        "$ref": "#/definitions/threat"
+      }
+    },
+    "controls": {
+      "type": "array",
+      "description": "Security controls that mitigate threats",
+      "items": {
+        "$ref": "#/definitions/control"
+      }
+    }
+  },
+  "definitions": {
+    "asset": {
+      "type": "object",
+      "required": ["ref", "name"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Unique reference identifier for the asset",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the asset",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the asset"
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "required": ["ref", "name", "component_type"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Unique reference identifier for the component",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the component",
+          "minLength": 1
+        },
+        "component_type": {
+          "type": "string",
+          "description": "Type of component",
+          "enum": ["internal", "external_dependency", "data_store"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the component"
+        },
+        "assets": {
+          "type": "array",
+          "description": "References to assets processed or stored by this component",
+          "items": {
+            "type": "string"
+          }
+        },
+        "x": {
+          "type": "number",
+          "description": "X coordinate for diagram visualization"
+        },
+        "y": {
+          "type": "number",
+          "description": "Y coordinate for diagram visualization"
+        }
+      }
+    },
+    "dataFlow": {
+      "type": "object",
+      "required": ["ref", "source", "destination"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Unique reference identifier for the data flow",
+          "pattern": "^[a-zA-Z0-9_<>-]+$"
+        },
+        "source": {
+          "type": "string",
+          "description": "Reference to the source component"
+        },
+        "destination": {
+          "type": "string",
+          "description": "Reference to the destination component"
+        },
+        "direction": {
+          "type": "string",
+          "description": "Direction of data flow",
+          "enum": ["unidirectional", "bidirectional"],
+          "default": "unidirectional"
+        },
+        "label": {
+          "type": "string",
+          "description": "Label for the data flow (e.g., protocol, data type)"
+        },
+        "source_point": {
+          "type": "string",
+          "description": "Connection point on the source component (e.g., top-1, top-2, top-3, right-1, right-2, right-3, bottom-1, bottom-2, bottom-3, left-1, left-2, left-3). Positions are ordered left-to-right for top/bottom and top-to-bottom for left/right.",
+          "pattern": "^(top|right|bottom|left)-[123]$"
+        },
+        "destination_point": {
+          "type": "string",
+          "description": "Connection point on the destination component (e.g., top-1, top-2, top-3, right-1, right-2, right-3, bottom-1, bottom-2, bottom-3, left-1, left-2, left-3). Positions are ordered left-to-right for top/bottom and top-to-bottom for left/right.",
+          "pattern": "^(top|right|bottom|left)-[123]$"
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "required": ["ref", "name"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Unique reference identifier for the boundary",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the boundary",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the boundary"
+        },
+        "components": {
+          "type": "array",
+          "description": "References to components within this boundary",
+          "items": {
+            "type": "string"
+          }
+        },
+        "x": {
+          "type": "number",
+          "description": "X coordinate for boundary position"
+        },
+        "y": {
+          "type": "number",
+          "description": "Y coordinate for boundary position"
+        },
+        "width": {
+          "type": "number",
+          "description": "Width of the boundary"
+        },
+        "height": {
+          "type": "number",
+          "description": "Height of the boundary"
+        }
+      }
+    },
+    "threat": {
+      "type": "object",
+      "required": ["ref", "name"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Unique reference identifier for the threat",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the threat",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the threat"
+        },
+        "affected_components": {
+          "type": "array",
+          "description": "References to components affected by this threat",
+          "items": {
+            "type": "string"
+          }
+        },
+        "affected_data_flows": {
+          "type": "array",
+          "description": "References to data flows affected by this threat",
+          "items": {
+            "type": "string"
+          }
+        },
+        "affected_assets": {
+          "type": "array",
+          "description": "References to assets affected by this threat",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "control": {
+      "type": "object",
+      "required": ["ref", "name"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Unique reference identifier for the control",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the control",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the control"
+        },
+        "mitigates": {
+          "type": "array",
+          "description": "References to threats that this control mitigates",
+          "items": {
+            "type": "string"
+          }
+        },
+        "implemented_in": {
+          "type": "array",
+          "description": "References to components where this control is implemented",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "Implementation status of the control",
+          "enum": ["To Do", "In Progress", "Done", "Cancelled"]
+        },
+        "status_link": {
+          "type": "string",
+          "description": "URL pointing to a work item for implementing this control (e.g., Jira task)"
+        },
+        "status_note": {
+          "type": "string",
+          "description": "Additional notes about the control implementation status"
+        }
+      }
+    }
+  }
+}

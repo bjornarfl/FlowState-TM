@@ -1,0 +1,386 @@
+schema_version: '1.0'
+name: Web Application with CDN
+description: Web application delivered through a Content Delivery Network with origin server, database, and authentication.
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: user_data
+    name: User Data
+    description: User account information, personal data, and session information stored in the application.
+  
+  - ref: application_content
+    name: Application Content
+    description: Static assets (HTML, CSS, JavaScript), images, and dynamic content served to users.
+  
+  - ref: api_data
+    name: API Data
+    description: Data exchanged between the web application and backend services through API calls.
+  
+  - ref: database_data
+    name: Database Data
+    description: Persistent data stored in the application database including user records and business data.
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components:
+  - ref: end_users
+    name: End Users
+    component_type: external_dependency
+    x: -383
+    y: -183
+    description: Users accessing the web application through their browsers
+
+  - ref: cdn
+    name: Content Delivery Network
+    component_type: external_dependency
+    x: -385
+    y: -55
+    description: CDN caching and delivering static content (CloudFront, Cloudflare, Akamai)
+    assets: [application_content]
+
+  - ref: web_server
+    name: Web Server
+    component_type: internal
+    x: -110
+    y: -35
+    description: Origin server hosting the web application and serving dynamic content
+    assets: [application_content, api_data]
+
+  - ref: application_server
+    name: Application Server
+    component_type: internal
+    x: 173
+    y: -43
+    description: Backend application logic handling business operations and API requests
+    assets: [api_data, user_data]
+
+  - ref: authentication_service
+    name: Authentication Service
+    component_type: internal
+    x: 50
+    y: -181
+    description: Service managing user authentication, sessions, and access control
+    assets: [user_data]
+
+  - ref: database
+    name: Database
+    component_type: data_store
+    x: 173
+    y: 89
+    description: Relational or NoSQL database storing application data
+    assets: [database_data, user_data]
+
+  - ref: cache
+    name: Cache Layer
+    component_type: internal
+    x: 320
+    y: -175
+    description: In-memory cache (Redis, Memcached) for session data and frequently accessed content
+    assets: [user_data, api_data]
+
+  - ref: admin_users
+    name: Admin Users
+    component_type: external_dependency
+    x: -116
+    y: -277
+    description: Administrators managing the application and infrastructure
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: end_users<->cdn
+    source: end_users
+    destination: cdn
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+    label: HTTPS
+
+  - ref: cdn<->web_server
+    source: cdn
+    destination: web_server
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Origin Fetch
+
+  - ref: end_users<->web_server
+    source: end_users
+    destination: web_server
+    source_point: right-3
+    destination_point: left-1
+    direction: bidirectional
+    label: Direct API
+
+  - ref: web_server<->application_server
+    source: web_server
+    destination: application_server
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: API Calls
+
+  - ref: application_server<->database
+    source: application_server
+    destination: database
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+    label: Query/Update
+
+  - ref: application_server<->authentication_service
+    source: application_server
+    destination: authentication_service
+    source_point: top-1
+    destination_point: bottom-2
+    direction: bidirectional
+    label: Verify Session
+
+  - ref: authentication_service<->cache
+    source: authentication_service
+    destination: cache
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Session Store
+
+  - ref: application_server<->cache
+    source: application_server
+    destination: cache
+    source_point: top-3
+    destination_point: bottom-2
+    direction: bidirectional
+    label: Cache Data
+
+  - ref: admin_users->web_server
+    source: admin_users
+    destination: web_server
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+    label: Admin Access
+
+  - ref: admin_users<->authentication_service
+    source: admin_users
+    destination: authentication_service
+    source_point: right-2
+    destination_point: top-2
+    direction: bidirectional
+    label: Admin Login
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: application_infrastructure
+    name: Application Infrastructure
+    x: -120
+    y: -140
+    width: 595
+    height: 367
+    components: [web_server, application_server, authentication_service, database, cache]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: cdn_cache_poisoning
+    name: CDN Cache Poisoning
+    description: |
+      An attacker manipulates HTTP headers or request parameters to poison the CDN cache 
+      with malicious content. This causes the CDN to serve the attacker's content to all 
+      users, enabling XSS attacks, phishing, or defacement at scale.
+    affected_components: [cdn, web_server]
+    affected_data_flows: [cdn<->web_server]
+    affected_assets: [application_content]
+
+  - ref: session_hijacking
+    name: Session Hijacking
+    description: |
+      An attacker steals session tokens through XSS, network sniffing, or session fixation 
+      to impersonate legitimate users. Weak session management or lack of secure flags on 
+      cookies enables this attack.
+    affected_components: [authentication_service, cache, end_users]
+    affected_assets: [user_data]
+
+  - ref: sql_injection
+    name: SQL Injection
+    description: |
+      An attacker injects malicious SQL queries through user input fields or API parameters 
+      that are not properly validated or parameterized. This allows unauthorized data access, 
+      modification, or deletion from the database.
+    affected_components: [application_server, database, web_server]
+    affected_data_flows: [application_server<->database]
+    affected_assets: [database_data, user_data]
+
+  - ref: xss_attacks
+    name: Cross-Site Scripting (XSS)
+    description: |
+      An attacker injects malicious JavaScript into the web application through user input, 
+      which is then executed in other users' browsers. This can steal session tokens, 
+      deface pages, or redirect users to malicious sites.
+    affected_components: [web_server, cdn]
+    affected_assets: [application_content, user_data]
+
+  - ref: credential_stuffing
+    name: Credential Stuffing
+    description: |
+      Attackers use lists of compromised usernames and passwords from other breaches to 
+      attempt login to the application. Lack of rate limiting, multi-factor authentication, 
+      or breach detection allows mass automated login attempts.
+    affected_components: [authentication_service, web_server]
+    affected_assets: [user_data]
+
+  - ref: ddos_attack
+    name: DDoS Attack
+    description: |
+      Distributed denial of service attack floods the web server, application server, or 
+      CDN with excessive traffic, making the application unavailable to legitimate users. 
+      Application-layer or network-layer attacks can overwhelm resources.
+    affected_components: [cdn, web_server, application_server]
+    affected_data_flows: [end_users<->cdn, end_users<->web_server]
+
+  - ref: insecure_direct_object_reference
+    name: Insecure Direct Object Reference (IDOR)
+    description: |
+      Users can access resources they don't own by manipulating object IDs in URLs or API 
+      requests. Insufficient authorization checks allow users to view or modify other users' 
+      data by changing ID parameters.
+    affected_components: [application_server, web_server]
+    affected_assets: [api_data, user_data]
+
+  - ref: api_abuse
+    name: API Abuse
+    description: |
+      Attackers exploit API endpoints without proper rate limiting or authentication to 
+      scrape data, perform automated attacks, or exhaust system resources. Lack of API 
+      keys or throttling enables abuse.
+    affected_components: [web_server, application_server]
+    affected_data_flows: [end_users<->web_server, web_server<->application_server]
+    affected_assets: [api_data]
+
+  - ref: broken_authentication
+    name: Broken Authentication
+    description: |
+      Weak password policies, predictable session tokens, lack of account lockout, or 
+      exposed authentication endpoints allow attackers to compromise user accounts through 
+      brute force or session manipulation.
+    affected_components: [authentication_service]
+    affected_assets: [user_data]
+
+  - ref: sensitive_data_exposure
+    name: Sensitive Data Exposure
+    description: |
+      Sensitive data is transmitted or stored without proper encryption, logged in plaintext, 
+      or exposed through error messages. This includes passwords, API keys, personal data, 
+      or payment information.
+    affected_components: [web_server, application_server, database, cache]
+    affected_assets: [user_data, database_data, api_data]
+
+  - ref: cdn_origin_exposure
+    name: CDN Origin Exposure
+    description: |
+      Attackers discover and directly access the origin server IP address, bypassing CDN 
+      protections like DDoS mitigation, rate limiting, and WAF. This allows direct attacks 
+      on the origin infrastructure.
+    affected_components: [web_server]
+    affected_data_flows: [cdn<->web_server]
+
+  - ref: insecure_admin_access
+    name: Insecure Admin Access
+    description: |
+      Admin interfaces lack proper authentication, use default credentials, or are exposed 
+      to the internet without IP restrictions. This allows attackers to gain administrative 
+      access and full control over the application.
+    affected_components: [admin_users, web_server, authentication_service]
+    affected_data_flows: [admin_users->web_server]
+    affected_assets: [user_data, database_data]
+
+  - ref: cache_timing_attacks
+    name: Cache Timing Attacks
+    description: |
+      Attackers exploit timing differences between cached and uncached responses to infer 
+      information about other users' behavior, determine if resources exist, or bypass 
+      authorization checks.
+    affected_components: [cache, cdn]
+    affected_assets: [api_data]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: waf
+    name: Web Application Firewall
+    description: Deploy WAF at CDN edge to filter malicious traffic, block common attack patterns, and protect against OWASP Top 10 vulnerabilities.
+    mitigates: [xss_attacks, sql_injection, ddos_attack, api_abuse]
+    implemented_in: [cdn]
+
+  - ref: cache_control_headers
+    name: Cache Control Headers
+    description: Implement strict Cache-Control and Vary headers to prevent cache poisoning. Never cache user-specific or sensitive content at CDN edge.
+    mitigates: [cdn_cache_poisoning, cache_timing_attacks]
+    implemented_in: [web_server, cdn]
+
+  - ref: secure_session_management
+    name: Secure Session Management
+    description: Use HttpOnly, Secure, and SameSite flags on cookies. Implement short session timeouts and regenerate session IDs after login.
+    mitigates: [session_hijacking, credential_stuffing]
+    implemented_in: [authentication_service, web_server]
+
+  - ref: parameterized_queries
+    name: Parameterized Queries
+    description: Use prepared statements and parameterized queries for all database operations. Never concatenate user input into SQL queries.
+    mitigates: [sql_injection]
+    implemented_in: [application_server]
+
+  - ref: input_validation
+    name: Input Validation and Sanitization
+    description: Validate all user input on the server side. Sanitize output and encode data before rendering in HTML to prevent XSS.
+    mitigates: [xss_attacks, sql_injection, api_abuse]
+    implemented_in: [web_server, application_server]
+
+  - ref: rate_limiting
+    name: Rate Limiting
+    description: Implement rate limiting on login endpoints, API calls, and resource-intensive operations to prevent brute force and abuse.
+    mitigates: [credential_stuffing, ddos_attack, api_abuse, broken_authentication]
+    implemented_in: [cdn, web_server, authentication_service]
+
+  - ref: authorization_checks
+    name: Authorization Checks
+    description: Verify user permissions for every resource access. Check ownership before returning data or allowing modifications.
+    mitigates: [insecure_direct_object_reference, insecure_admin_access]
+    implemented_in: [application_server]
+
+  - ref: mfa
+    name: Multi-Factor Authentication
+    description: Require MFA for all user accounts, especially administrators. Use TOTP, SMS, or hardware keys as second factors.
+    mitigates: [credential_stuffing, broken_authentication, insecure_admin_access]
+    implemented_in: [authentication_service]
+
+  - ref: tls_encryption
+    name: TLS Encryption
+    description: Enforce HTTPS everywhere with TLS 1.3. Use HSTS headers to prevent protocol downgrade attacks.
+    mitigates: [sensitive_data_exposure, session_hijacking]
+    implemented_in: [cdn, web_server]
+
+  - ref: database_encryption
+    name: Database Encryption
+    description: Encrypt sensitive data at rest in the database. Use column-level encryption for highly sensitive fields like passwords (hashed with bcrypt/Argon2).
+    mitigates: [sensitive_data_exposure]
+    implemented_in: [database]
+
+  - ref: origin_access_control
+    name: Origin Access Control
+    description: Configure CDN to use custom headers or signed requests to verify requests are from CDN. Restrict origin server access by IP to only allow CDN traffic.
+    mitigates: [cdn_origin_exposure, ddos_attack]
+    implemented_in: [cdn, web_server]
+
+  - ref: admin_ip_whitelist
+    name: Admin IP Whitelisting
+    description: Restrict admin interface access to specific IP addresses or VPN. Require additional authentication for administrative actions.
+    mitigates: [insecure_admin_access]
+    implemented_in: [web_server]
+
+  - ref: csp_headers
+    name: Content Security Policy
+    description: Implement strict CSP headers to prevent XSS by controlling which resources can be loaded and executed in the browser.
+    mitigates: [xss_attacks]
+    implemented_in: [web_server]
+
+  - ref: security_monitoring
+    name: Security Monitoring and Logging
+    description: Log authentication events, failed login attempts, and suspicious activities. Set up alerts for anomalous patterns.
+    mitigates: [credential_stuffing, broken_authentication, insecure_admin_access, api_abuse]
+    implemented_in: [web_server, authentication_service, application_server]

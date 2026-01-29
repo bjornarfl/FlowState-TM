@@ -1,0 +1,106 @@
+.github-sync-modal {
+  max-width: 560px;
+}
+
+.sync-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.sync-modal-header h2 {
+  margin: 0;
+}
+
+.sync-icon {
+  color: var(--text-warning);
+  flex-shrink: 0;
+}
+
+.sync-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sync-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background-color: rgba(245, 158, 11, 0.1);
+  border-left: 3px solid var(--text-warning);
+  border-radius: 4px;
+}
+
+.sync-warning svg {
+  flex-shrink: 0;
+  color: var(--text-warning);
+  margin-top: 2px;
+}
+
+.sync-warning p {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.sync-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background-color: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.sync-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.detail-value {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  color: var(--text-primary);
+}
+
+.sync-options {
+  padding: 12px;
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.sync-options p {
+  margin: 0 0 8px 0;
+  font-weight: 500;
+}
+
+.sync-options ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.sync-options li {
+  margin-bottom: 8px;
+}
+
+.sync-options li:last-child {
+  margin-bottom: 0;
+}
+
+.button-warning {
+  background-color: var(--bg-warning);
+  color: var(--text-warning);
+}
+
+.button-warning:hover:not(:disabled) {
+  background-color: var(--text-warning);
+  color: var(--bg-warning);
+}

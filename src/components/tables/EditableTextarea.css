@@ -1,0 +1,28 @@
+.always-editable-textarea-input {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  font-size: 14px;
+  line-height: 1.4;
+  font-family: inherit;
+  color: inherit;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+  min-height: 36px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.always-editable-textarea-input:hover {
+  border-color: var(--border-color-strong);
+  border-radius: 3px;
+}
+
+.always-editable-textarea-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background-color: var(--bg-primary);
+  border-radius: 3px;
+}

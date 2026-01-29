@@ -1,0 +1,468 @@
+/* Threat Model Node Styles */
+
+.threat-node {
+  padding: 4px;
+  border: 2px solid var(--node-border, #000);
+  background: var(--bg-primary, white);
+  min-width: 100px;
+  min-height: 46px;
+}
+
+/* Internal Component - Rounded Rectangle */
+.threat-node.internal {
+  border-radius: 25px;
+  min-width: 140px;
+  position: relative;
+}
+
+/* External Dependency - Rectangle */
+.threat-node.external-dependency {
+  border-radius: 0;
+  min-width: 140px;
+  position: relative;
+}
+
+/* Data Store - Parallel lines (top and bottom) */
+.threat-node.data-store {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  min-width: 140px;
+  position: relative;
+}
+
+.node-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.node-label-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.node-label {
+  font-weight: 500;
+  font-size: 14px;
+  padding: 6px 0px;
+  color: var(--text-primary, #000);
+  word-wrap: break-word;
+  word-break: break-word;
+  cursor: default;
+  user-select: none;
+  line-height: 1.4;
+  display: block;
+  max-width: 120px;
+  white-space: normal;
+  border: 1px solid transparent;
+}
+
+.node-label.editable {
+  cursor: text;
+}
+
+.node-label.editable:hover {
+  opacity: 0.7;
+}
+
+.node-edit-button {
+  position: absolute;
+  left: 100%;
+  margin-left: -14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted, #666);
+  transition: opacity 0.15s ease, color 0.15s ease;
+  padding: 0;
+  opacity: 0;
+}
+
+.node-edit-button.visible {
+  opacity: 1;
+}
+
+.node-edit-button:hover {
+  opacity: 1;
+  color: var(--accent-color, #4a90d9);
+}
+
+.node-edit-button:active {
+  transform: scale(0.9);
+}
+
+.node-label-input {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text-primary, #000);
+  padding: 6px 0px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-family: inherit;
+  text-align: center;
+  background: transparent;
+  margin: 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  max-width: 120px;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  display: block;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  resize: none;
+}
+
+.node-label-input:hover {
+  border-color: var(--border-color-strong, #ccc);
+}
+
+.node-label-input:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a90d9);
+}
+
+/* Handle styles - discrete and subtle */
+.react-flow__handle {
+  width: 12px;
+  height: 12px;
+  background: #999;
+  border: 1px solid #ccc;
+  border-radius: 50%;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 5;
+  cursor: crosshair;
+}
+
+.react-flow__handle.connectingFrom,
+.react-flow__handle.connectingTo {
+  background: #ff6b6b;
+  opacity: 1;
+  border-color: #ff0000;
+}
+
+/* Show handles on node hover */
+.threat-node:hover .react-flow__handle {
+  opacity: 0.5;
+}
+
+.threat-node:hover .react-flow__handle:hover {
+  background: #333;
+  opacity: 1;
+  border-color: #333;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Show handles when node is selected */
+.threat-node.selected .react-flow__handle {
+  opacity: 0.5;
+}
+
+.threat-node.selected .react-flow__handle:hover {
+  background: #333;
+  opacity: 1;
+  border-color: #333;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Hide handles when node is in edit mode */
+.threat-node.edit-mode .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Show handles when node is in data flow creation mode (selecting source or target handle) */
+.threat-node.handle-selection-mode .react-flow__handle {
+  opacity: 0.5;
+}
+
+.threat-node.handle-selection-mode .react-flow__handle:hover {
+  background: #333;
+  opacity: 1;
+  border-color: #333;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Show all handles when any edge is being connected */
+.react-flow__container.dragging-edge .react-flow__handle {
+  opacity: 0.5;
+}
+
+.react-flow__container.dragging-edge .react-flow__handle:hover {
+  background: #333;
+  opacity: 1;
+  border-color: #333;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Handle wrapper positioning - this positions the wrapper, not the handle */
+.handle-wrapper {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* Default positioning for rectangular nodes */
+.handle-wrapper.handle-top-1 {
+  top: 0;
+  left: 20%;
+}
+
+.handle-wrapper.handle-top-2 {
+  top: 0;
+  left: 50%;
+}
+
+.handle-wrapper.handle-top-3 {
+  top: 0;
+  left: 80%;
+}
+
+.handle-wrapper.handle-right-1 {
+  right: 0;
+  top: 20%;
+}
+
+.handle-wrapper.handle-right-2 {
+  right: 0;
+  top: 50%;
+}
+
+.handle-wrapper.handle-right-3 {
+  right: 0;
+  top: 81%;
+}
+
+.handle-wrapper.handle-bottom-1 {
+  bottom: 0;
+  left: 20%;
+}
+
+.handle-wrapper.handle-bottom-2 {
+  bottom: 0;
+  left: 50%;
+}
+
+.handle-wrapper.handle-bottom-3 {
+  bottom: 0;
+  left: 80%;
+}
+
+.handle-wrapper.handle-left-1 {
+  left: 0;
+  top: 20%;
+}
+
+.handle-wrapper.handle-left-2 {
+  left: 0;
+  top: 50%;
+}
+
+.handle-wrapper.handle-left-3 {
+  left: 0;
+  top: 81%;
+}
+
+
+
+/* All handles positioned relative to their wrapper */
+.handle-wrapper .react-flow__handle {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* Focused handle during data flow creation */
+.handle-wrapper.focused .react-flow__handle {
+  opacity: 1;
+  border: 2px solid var(--accent-blue, #4a90d9) !important;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.3);
+  z-index: 10;
+}
+
+/* Focused node during target selection phase */
+.threat-node.connection-focused {
+  box-shadow: 0 0 0 2px var(--accent-color, #4a90d9);
+  outline: none;
+}
+
+
+/* Selected state for nodes */
+.threat-node.selected {
+  box-shadow: 0 0 0 2px var(--accent-color, #4a90d9);
+  outline: none;
+}
+
+/* Hide selection border when in edit mode */
+.threat-node.selected.edit-mode {
+  box-shadow: none;
+}
+
+/* Override react-flow's default selected node styling */
+.react-flow__node.selected .threat-node {
+  outline: none;
+  outline-width: 0;
+}
+
+/* Node toolbar styles */
+.node-toolbar-top {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-toolbar-bottom {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary, #fff);
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: all 0.15s ease;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+}
+
+/* Internal type button - pill shaped */
+.node-toolbar-button.type-internal {
+  border: 2px solid var(--text-primary, #333);
+  border-radius: 10px;
+  width: 28px;
+  height: 20px;
+  padding: 0;
+}
+
+/* External type button - rectangle */
+.node-toolbar-button.type-external {
+  border: 2px solid var(--text-primary, #333);
+  border-radius: 0;
+  width: 28px;
+  height: 20px;
+  padding: 0;
+}
+
+/* Data store type button - parallel lines (top and bottom borders only) */
+.node-toolbar-button.type-datastore {
+  border: none;
+  border-top: 2px solid var(--text-primary, #333);
+  border-bottom: 2px solid var(--text-primary, #333);
+  border-radius: 0;
+  width: 28px;
+  height: 20px;
+  padding: 0;
+}
+
+.node-toolbar-button.type-internal:hover,
+.node-toolbar-button.type-external:hover,
+.node-toolbar-button.type-datastore:hover {
+  background: var(--bg-hover, #e0e0e0);
+}
+
+.node-toolbar-button.type-internal.active {
+  border-color: var(--accent-color, #4a90d9);
+  background: rgba(74, 144, 217, 0.1);
+}
+
+.node-toolbar-button.type-external.active {
+  border-color: var(--accent-color, #4a90d9);
+  background: rgba(74, 144, 217, 0.1);
+}
+
+.node-toolbar-button.type-datastore.active {
+  border-top-color: var(--accent-color, #4a90d9);
+  border-bottom-color: var(--accent-color, #4a90d9);
+  background: rgba(74, 144, 217, 0.1);
+}
+
+/* Node info dialog */
+.node-info-dialog {
+  width: 220px;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.node-info-dialog-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.node-info-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.node-info-field label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted, #666);
+}
+
+.node-info-ref {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-muted);
+  background: var(--bg-secondary, #f5f5f5);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: not-allowed;
+}
+
+.node-info-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #333);
+  resize: vertical;
+  min-height: 60px;
+}
+
+.node-info-textarea:hover {
+  border-color: var(--border-color-strong, #ccc);
+}
+
+.node-info-textarea:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a90d9);
+}
+
+.node-info-textarea::placeholder {
+  color: var(--text-muted, #999);
+}
+
+.node-input-wrapper {
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+}

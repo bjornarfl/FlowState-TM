@@ -1,0 +1,29 @@
+.resize-divider {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+  z-index: 10;
+}
+
+.resize-divider:hover,
+.resize-divider:active {
+  background: var(--accent-blue);
+}
+
+.resize-divider-handle {
+  position: absolute;
+  top: 0;
+  left: -2px;
+  right: -2px;
+  bottom: 0;
+  cursor: col-resize;
+}
+
+/* When dragging, ensure cursor persists */
+body:has(.resize-divider:active) {
+  cursor: col-resize !important;
+  user-select: none !important;
+}

@@ -1,0 +1,21 @@
+schema_version: '1.0'
+name: Your name here
+description: your description here
+
+# Assets - Represents data or resources that need protection
+assets: []
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components: []
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows: []
+
+# Boundaries - Represents trust boundaries in the system
+boundaries: []
+
+# Threats - Represents potential security threats to the system
+threats: []
+
+# Controls - Represents security measures implemented to mitigate threats
+controls: []
