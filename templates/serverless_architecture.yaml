@@ -1,0 +1,420 @@
+schema_version: '1.0'
+name: Serverless Architecture
+description: Event-driven serverless application using managed cloud services including functions, API gateway, storage, and messaging.
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: user_data
+    name: User Data
+    description: Personal and business data submitted by users through the application including PII, documents, and transactions.
+  
+  - ref: function_code
+    name: Function Code
+    description: Application logic deployed as serverless functions that processes requests and business operations.
+  
+  - ref: api_credentials
+    name: API Credentials
+    description: Credentials and secrets used by functions to access databases, external APIs, and other cloud services.
+  
+  - ref: events
+    name: Events
+    description: Messages and events flowing through the system triggering function executions and state changes.
+  
+  - ref: stored_files
+    name: Stored Files
+    description: Files and objects stored in cloud storage including uploads, generated documents, and backups.
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components:
+  - ref: client
+    name: Client Application
+    component_type: external_dependency
+    x: -411
+    y: -10
+    description: Web or mobile application making requests to the serverless backend
+
+  - ref: api_gateway
+    name: API Gateway
+    component_type: internal
+    x: -150
+    y: 0
+    description: Managed API gateway that routes HTTP requests to appropriate serverless functions
+    assets: [user_data, api_credentials]
+
+  - ref: auth_function
+    name: Authentication Function
+    component_type: internal
+    x: -150
+    y: -120
+    description: Serverless function handling user authentication and token generation
+    assets: [function_code, api_credentials, user_data]
+
+  - ref: business_function
+    name: Business Logic Functions
+    component_type: internal
+    x: 84
+    y: -9
+    description: Core serverless functions implementing business operations and data processing
+    assets: [function_code, api_credentials, user_data]
+
+  - ref: database
+    name: Managed Database
+    component_type: data_store
+    x: 164
+    y: 229
+    description: Cloud-managed database service (DynamoDB, CosmosDB, etc.) storing application data
+    assets: [user_data]
+
+  - ref: object_storage
+    name: Object Storage
+    component_type: data_store
+    x: 84
+    y: -107
+    description: Cloud object storage service (S3, Azure Blob Storage) for file storage
+    assets: [stored_files]
+
+  - ref: message_queue
+    name: Message Queue
+    component_type: internal
+    x: 85
+    y: 110
+    description: Managed message queue or event bus for asynchronous processing
+    assets: [events, user_data]
+
+  - ref: async_function
+    name: Async Processing Functions
+    component_type: internal
+    x: -121
+    y: 221
+    description: Functions triggered by queue messages for background processing
+    assets: [function_code, api_credentials]
+
+  - ref: secrets_manager
+    name: Secrets Manager
+    component_type: internal
+    x: -119
+    y: 93
+    description: Managed service for storing and retrieving sensitive credentials and secrets
+    assets: [api_credentials]
+
+  - ref: external_api
+    name: External API
+    component_type: external_dependency
+    x: 333
+    y: -106
+    description: Third-party APIs consumed by serverless functions
+    assets: [user_data]
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: client<->api_gateway
+    source: client
+    destination: api_gateway
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: HTTPS Requests
+
+  - ref: client->auth_function
+    source: client
+    destination: auth_function
+    source_point: top-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Login/Register
+
+  - ref: api_gateway->business_function
+    source: api_gateway
+    destination: business_function
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Invoke
+
+  - ref: business_function<->database
+    source: business_function
+    destination: database
+    source_point: right-3
+    destination_point: top-3
+    direction: bidirectional
+    label: Query/Update
+
+  - ref: business_function<->object_storage
+    source: business_function
+    destination: object_storage
+    source_point: top-2
+    destination_point: bottom-2
+    direction: bidirectional
+    label: Read/Write
+
+  - ref: business_function->message_queue
+    source: business_function
+    destination: message_queue
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Publish Event
+
+  - ref: message_queue->async_function
+    source: message_queue
+    destination: async_function
+    source_point: bottom-2
+    destination_point: right-1
+    direction: unidirectional
+    label: Trigger
+
+  - ref: async_function<->database
+    source: async_function
+    destination: database
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Update
+
+  - ref: secrets_manager->business_function
+    source: secrets_manager
+    destination: business_function
+    source_point: right-1
+    destination_point: left-3
+    direction: unidirectional
+    label: Retrieve Secrets
+
+  - ref: secrets_manager->async_function
+    source: secrets_manager
+    destination: async_function
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Retrieve Secrets
+
+  - ref: business_function<->external_api
+    source: business_function
+    destination: external_api
+    source_point: right-1
+    destination_point: bottom-1
+    direction: bidirectional
+    label: API Calls
+
+  - ref: auth_function->api_gateway
+    source: auth_function
+    destination: api_gateway
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Auth Token
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: cloud_account
+    name: Cloud Account
+    x: -170
+    y: -140
+    width: 491
+    height: 466
+    components: [api_gateway, auth_function, business_function, database, object_storage, message_queue, async_function, secrets_manager]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: function_over_privilege
+    name: Function Over-Privilege
+    description: |
+      Serverless functions are granted excessive IAM permissions beyond what they need, 
+      allowing an attacker who compromises a function to access unrelated resources, 
+      databases, or services. This violates the principle of least privilege and 
+      increases the blast radius of a compromise.
+    affected_components: [business_function, async_function, auth_function]
+    affected_assets: [user_data, api_credentials]
+
+  - ref: function_event_injection
+    name: Function Event Injection
+    description: |
+      An attacker manipulates event data sent to serverless functions through API Gateway, 
+      message queues, or storage triggers to inject malicious payloads. Insufficient input 
+      validation allows command injection, SQL injection, or business logic bypass.
+    affected_components: [business_function, async_function]
+    affected_data_flows: [api_gateway->business_function, message_queue->async_function]
+    affected_assets: [user_data, events]
+
+  - ref: secrets_exposure
+    name: Secrets Exposure
+    description: |
+      Sensitive credentials and API keys are exposed through environment variables, 
+      function logs, error messages, or function configuration. Hardcoded secrets in 
+      function code or overly permissive access to secrets manager increases risk.
+    affected_components: [business_function, async_function, secrets_manager]
+    affected_assets: [api_credentials]
+
+  - ref: denial_of_wallet
+    name: Denial of Wallet
+    description: |
+      An attacker triggers excessive function executions through API abuse or event 
+      flooding, causing unexpected cloud costs. Lack of rate limiting, throttling, or 
+      budget alerts allows attackers to drain cloud spending budgets.
+    affected_components: [api_gateway, business_function, async_function, message_queue]
+    affected_data_flows: [client<->api_gateway, message_queue->async_function]
+
+  - ref: insecure_dependencies
+    name: Insecure Dependencies
+    description: |
+      Serverless functions use third-party libraries or runtime dependencies with known 
+      vulnerabilities. The ephemeral nature of functions and lack of traditional patching 
+      processes can leave vulnerable code in production longer.
+    affected_components: [business_function, async_function, auth_function]
+    affected_assets: [function_code]
+
+  - ref: cold_start_timing_attacks
+    name: Cold Start Timing Attacks
+    description: |
+      An attacker uses timing analysis of function cold starts and warm instances to 
+      infer information about function execution, user behavior, or system state. This 
+      can reveal business logic or data patterns.
+    affected_components: [business_function, async_function]
+
+  - ref: unauthorized_function_access
+    name: Unauthorized Function Access
+    description: |
+      Functions are invoked directly without proper authentication or authorization checks, 
+      bypassing API Gateway controls. Overly permissive function invocation policies or 
+      exposed function URLs allow unauthorized access.
+    affected_components: [business_function, async_function]
+    affected_assets: [user_data, function_code]
+
+  - ref: data_leakage_through_logs
+    name: Data Leakage Through Logs
+    description: |
+      Sensitive data including PII, credentials, or business data is inadvertently 
+      logged to cloud logging services (CloudWatch, Application Insights) without 
+      proper sanitization, making it accessible to anyone with log read permissions.
+    affected_components: [business_function, async_function, auth_function]
+    affected_assets: [user_data, api_credentials]
+
+  - ref: storage_bucket_misconfiguration
+    name: Storage Bucket Misconfiguration
+    description: |
+      Object storage buckets are configured with overly permissive access policies, 
+      allowing public read or write access. Lack of encryption, versioning, or access 
+      logging increases data exposure risk.
+    affected_components: [object_storage]
+    affected_assets: [stored_files]
+
+  - ref: message_tampering
+    name: Message Tampering
+    description: |
+      An attacker with access to the message queue modifies or injects malicious messages 
+      to manipulate async processing, cause data corruption, or trigger unintended 
+      business operations.
+    affected_components: [message_queue]
+    affected_data_flows: [business_function->message_queue, message_queue->async_function]
+    affected_assets: [events, user_data]
+
+  - ref: function_timeout_exploitation
+    name: Function Timeout Exploitation
+    description: |
+      An attacker crafts inputs that cause functions to run until timeout, consuming 
+      resources and preventing legitimate requests from completing. This can lead to 
+      denial of service and incomplete transactions.
+    affected_components: [business_function, async_function]
+
+  - ref: third_party_api_compromise
+    name: Third-Party API Compromise
+    description: |
+      External APIs consumed by serverless functions are compromised or return malicious 
+      data. Insufficient validation of external API responses can lead to injection attacks 
+      or data poisoning in the application.
+    affected_components: [external_api, business_function]
+    affected_data_flows: [business_function<->external_api]
+    affected_assets: [user_data]
+
+  - ref: insufficient_monitoring
+    name: Insufficient Monitoring
+    description: |
+      Lack of comprehensive monitoring, tracing, and alerting makes it difficult to 
+      detect security incidents, anomalous function behavior, or unauthorized access 
+      patterns across distributed serverless components.
+    affected_components: [api_gateway, business_function, async_function]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: least_privilege_iam
+    name: Least Privilege IAM
+    description: Grant functions the minimum IAM permissions required. Use separate roles per function with explicit resource ARN restrictions. Regularly audit and review function permissions.
+    mitigates: [function_over_privilege, unauthorized_function_access]
+    implemented_in: [business_function, async_function, auth_function]
+
+  - ref: input_validation_sanitization
+    name: Input Validation and Sanitization
+    description: Validate and sanitize all input from API Gateway and message queue events. Use schema validation, allowlists, and parameterized queries to prevent injection attacks.
+    mitigates: [function_event_injection, third_party_api_compromise]
+    implemented_in: [business_function, async_function]
+
+  - ref: secrets_manager_integration
+    name: Secrets Manager Integration
+    description: Store all credentials in a managed secrets service. Retrieve secrets at runtime rather than using environment variables. Implement automatic secret rotation.
+    mitigates: [secrets_exposure]
+    implemented_in: [secrets_manager, business_function, async_function]
+
+  - ref: api_rate_limiting
+    name: API Rate Limiting
+    description: Implement rate limiting and throttling at API Gateway. Set function concurrency limits and budget alerts to prevent excessive execution costs.
+    mitigates: [denial_of_wallet, function_timeout_exploitation]
+    implemented_in: [api_gateway]
+
+  - ref: dependency_scanning
+    name: Dependency Scanning
+    description: Scan function dependencies for vulnerabilities during build. Automate dependency updates and use vulnerability databases to identify risky packages.
+    mitigates: [insecure_dependencies]
+    implemented_in: [business_function, async_function, auth_function]
+
+  - ref: function_authentication
+    name: Function Authentication
+    description: Require authentication for all function invocations. Use API Gateway authorizers, JWT validation, or IAM authentication to prevent unauthorized access.
+    mitigates: [unauthorized_function_access, cold_start_timing_attacks]
+    implemented_in: [api_gateway, business_function, async_function]
+
+  - ref: log_sanitization
+    name: Log Sanitization
+    description: Implement log filtering to remove sensitive data before writing to cloud logs. Use structured logging and avoid logging request bodies or credentials.
+    mitigates: [data_leakage_through_logs, secrets_exposure]
+    implemented_in: [business_function, async_function, auth_function]
+
+  - ref: storage_encryption
+    name: Storage Encryption
+    description: Enable encryption at rest for object storage and databases. Use customer-managed keys. Implement bucket policies to deny unencrypted uploads.
+    mitigates: [storage_bucket_misconfiguration]
+    implemented_in: [object_storage, database]
+
+  - ref: storage_access_controls
+    name: Storage Access Controls
+    description: Configure bucket policies with least privilege access. Disable public access. Enable access logging and versioning for audit trails.
+    mitigates: [storage_bucket_misconfiguration]
+    implemented_in: [object_storage]
+
+  - ref: message_encryption
+    name: Message Encryption
+    description: Encrypt messages in transit and at rest in message queues. Use message signing to verify authenticity and detect tampering.
+    mitigates: [message_tampering]
+    implemented_in: [message_queue]
+
+  - ref: timeout_configuration
+    name: Timeout Configuration
+    description: Set appropriate function timeout limits. Implement circuit breakers for external API calls. Use idempotency tokens to handle partial failures.
+    mitigates: [function_timeout_exploitation]
+    implemented_in: [business_function, async_function]
+
+  - ref: external_api_validation
+    name: External API Validation
+    description: Validate and sanitize all responses from external APIs. Implement retry logic with exponential backoff. Monitor for anomalies in external API behavior.
+    mitigates: [third_party_api_compromise]
+    implemented_in: [business_function]
+
+  - ref: distributed_tracing
+    name: Distributed Tracing
+    description: Implement distributed tracing across all functions and services. Use correlation IDs to track requests. Set up alerts for anomalous patterns and security events.
+    mitigates: [insufficient_monitoring, unauthorized_function_access, function_event_injection]
+    implemented_in: [api_gateway, business_function, async_function]
+
+  - ref: function_isolation
+    name: Function Isolation
+    description: Deploy functions in isolated VPCs with security groups. Use VPC endpoints for accessing cloud services. Implement network segmentation between function groups.
+    mitigates: [function_over_privilege, unauthorized_function_access]
+    implemented_in: [business_function, async_function]

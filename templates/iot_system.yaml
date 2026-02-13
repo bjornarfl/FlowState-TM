@@ -1,0 +1,511 @@
+schema_version: '1.0'
+name: IoT System
+description: Internet of Things architecture with edge devices, gateways, cloud platform, data processing, and device management.
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: sensor_data
+    name: Sensor Data
+    description: Telemetry data collected from IoT devices including measurements, status information, and environmental readings.
+  
+  - ref: device_credentials
+    name: Device Credentials
+    description: Authentication credentials, certificates, and keys used by IoT devices to connect to the platform.
+  
+  - ref: firmware
+    name: Firmware
+    description: Embedded software running on IoT devices that can be updated remotely.
+  
+  - ref: device_commands
+    name: Device Commands
+    description: Control commands and configuration updates sent from the cloud to IoT devices.
+  
+  - ref: user_data
+    name: User Data
+    description: Personal information and preferences of users managing and interacting with IoT devices.
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components:
+  - ref: iot_devices
+    name: IoT Devices
+    component_type: external_dependency
+    x: -366
+    y: 118
+    description: Edge devices with sensors and actuators deployed in the field (sensors, smart meters, industrial equipment)
+    assets: [sensor_data, device_credentials, firmware]
+
+  - ref: edge_gateway
+    name: Edge Gateway
+    component_type: external_dependency
+    x: -366
+    y: 0
+    description: Local gateway aggregating data from multiple devices and providing edge processing
+    assets: [sensor_data, device_credentials]
+
+  - ref: iot_hub
+    name: IoT Hub
+    component_type: internal
+    x: -103
+    y: -1
+    description: Managed service for bi-directional communication with IoT devices (AWS IoT Core, Azure IoT Hub)
+    assets: [sensor_data, device_commands, device_credentials]
+
+  - ref: device_registry
+    name: Device Registry
+    component_type: data_store
+    x: -101
+    y: -93
+    description: Database maintaining device identities, certificates, and metadata
+    assets: [device_credentials]
+
+  - ref: message_broker
+    name: Message Broker
+    component_type: internal
+    x: 125
+    y: 51
+    description: Event streaming platform for ingesting and routing device telemetry (Kafka, Event Hubs)
+    assets: [sensor_data]
+
+  - ref: stream_processing
+    name: Stream Processing
+    component_type: internal
+    x: 109
+    y: 181
+    description: Real-time analytics and data transformation on device streams (Flink, Spark Streaming)
+    assets: [sensor_data]
+
+  - ref: time_series_db
+    name: Time Series Database
+    component_type: data_store
+    x: 315
+    y: 181
+    description: Optimized storage for time-series sensor data (InfluxDB, TimescaleDB)
+    assets: [sensor_data]
+
+  - ref: device_management
+    name: Device Management Service
+    component_type: internal
+    x: 128
+    y: -112
+    description: Service for provisioning, monitoring, and managing IoT device lifecycle
+    assets: [device_credentials, firmware, device_commands]
+
+  - ref: firmware_storage
+    name: Firmware Storage
+    component_type: data_store
+    x: -101
+    y: -191
+    description: Repository storing firmware images for over-the-air updates
+    assets: [firmware]
+
+  - ref: api_backend
+    name: API Backend
+    component_type: internal
+    x: 315
+    y: 63
+    description: REST API for users and applications to interact with IoT platform
+    assets: [sensor_data, user_data, device_commands]
+
+  - ref: web_app
+    name: Web Application
+    component_type: external_dependency
+    x: 538
+    y: 63
+    description: User interface for monitoring devices and viewing data
+    assets: [user_data, sensor_data]
+
+  - ref: auth_service
+    name: Authentication Service
+    component_type: internal
+    x: 316
+    y: -105
+    description: Identity and access management for users and applications
+    assets: [user_data]
+
+  - ref: rules_engine
+    name: Rules Engine
+    component_type: internal
+    x: -104
+    y: 131
+    description: Service evaluating rules and triggering actions based on device data
+    assets: [sensor_data, device_commands]
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: iot_devices->edge_gateway
+    source: iot_devices
+    destination: edge_gateway
+    source_point: top-3
+    destination_point: bottom-3
+    direction: unidirectional
+    label: Telemetry
+
+  - ref: edge_gateway->iot_devices
+    source: edge_gateway
+    destination: iot_devices
+    source_point: bottom-1
+    destination_point: top-1
+    direction: unidirectional
+    label: Commands
+
+  - ref: edge_gateway<->iot_hub
+    source: edge_gateway
+    destination: iot_hub
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: MQTT/HTTPS
+
+  - ref: iot_devices<->iot_hub
+    source: iot_devices
+    destination: iot_hub
+    source_point: right-2
+    destination_point: left-3
+    direction: bidirectional
+    label: Direct Connect
+
+  - ref: iot_hub<->device_registry
+    source: iot_hub
+    destination: device_registry
+    source_point: top-2
+    destination_point: bottom-2
+    direction: bidirectional
+    label: Device Auth
+
+  - ref: iot_hub->message_broker
+    source: iot_hub
+    destination: message_broker
+    source_point: right-2
+    destination_point: left-2
+    direction: unidirectional
+    label: Ingest Data
+
+  - ref: message_broker->stream_processing
+    source: message_broker
+    destination: stream_processing
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Stream
+
+  - ref: stream_processing->time_series_db
+    source: stream_processing
+    destination: time_series_db
+    source_point: right-2
+    destination_point: left-2
+    direction: unidirectional
+    label: Store
+
+  - ref: message_broker->rules_engine
+    source: message_broker
+    destination: rules_engine
+    source_point: bottom-1
+    destination_point: right-2
+    direction: unidirectional
+    label: Events
+
+  - ref: rules_engine->iot_hub
+    source: rules_engine
+    destination: iot_hub
+    source_point: top-2
+    destination_point: bottom-2
+    direction: unidirectional
+    label: Trigger Action
+
+  - ref: device_management<->iot_hub
+    source: device_management
+    destination: iot_hub
+    source_point: bottom-1
+    destination_point: right-1
+    direction: bidirectional
+    label: Manage Devices
+
+  - ref: device_management<->device_registry
+    source: device_management
+    destination: device_registry
+    source_point: left-2
+    destination_point: right-2
+    direction: bidirectional
+    label: Update
+
+  - ref: device_management<->firmware_storage
+    source: device_management
+    destination: firmware_storage
+    source_point: top-1
+    destination_point: right-2
+    direction: bidirectional
+    label: Firmware
+
+  - ref: api_backend<->time_series_db
+    source: api_backend
+    destination: time_series_db
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+    label: Query Data
+
+  - ref: api_backend<->device_management
+    source: api_backend
+    destination: device_management
+    source_point: top-1
+    destination_point: bottom-3
+    direction: bidirectional
+    label: Device Operations
+
+  - ref: api_backend<->auth_service
+    source: api_backend
+    destination: auth_service
+    source_point: top-2
+    destination_point: bottom-2
+    direction: bidirectional
+    label: Verify User
+
+  - ref: web_app<->api_backend
+    source: web_app
+    destination: api_backend
+    source_point: left-2
+    destination_point: right-2
+    direction: bidirectional
+    label: HTTPS
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: cloud_platform
+    name: Cloud Platform
+    x: -129
+    y: -196
+    width: 604
+    height: 496
+    components: [iot_hub, device_registry, message_broker, stream_processing, time_series_db, device_management, firmware_storage, api_backend, auth_service, rules_engine]
+
+  - ref: edge_network
+    name: Edge Network
+    x: -391
+    y: -34
+    width: 188
+    height: 216
+    components: [iot_devices, edge_gateway]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: device_impersonation
+    name: Device Impersonation
+    description: |
+      An attacker impersonates a legitimate IoT device by stealing or cloning device credentials, 
+      certificates, or authentication tokens. This allows injection of false data or unauthorized 
+      control of the system without owning a physical device.
+    affected_components: [iot_devices, edge_gateway, iot_hub, device_registry]
+    affected_assets: [device_credentials, sensor_data]
+
+  - ref: insecure_device_communication
+    name: Insecure Device Communication
+    description: |
+      Communication between devices and the cloud uses unencrypted protocols or weak encryption, 
+      allowing man-in-the-middle attacks to intercept sensor data or inject malicious commands. 
+      Plain MQTT without TLS or HTTP instead of HTTPS are common vulnerabilities.
+    affected_components: [iot_devices, edge_gateway, iot_hub]
+    affected_data_flows: [iot_devices<->iot_hub, edge_gateway<->iot_hub]
+    affected_assets: [sensor_data, device_commands]
+
+  - ref: firmware_tampering
+    name: Firmware Tampering
+    description: |
+      Attackers modify firmware images in storage or during transmission to inject backdoors, 
+      malware, or disable security features. Compromised firmware can give persistent control 
+      over devices and the data they collect.
+    affected_components: [firmware_storage, device_management, iot_devices]
+    affected_data_flows: [device_management<->firmware_storage]
+    affected_assets: [firmware]
+
+  - ref: physical_device_tampering
+    name: Physical Device Tampering
+    description: |
+      Devices deployed in unsecured locations can be physically accessed by attackers who 
+      extract credentials, modify hardware, inject malicious firmware, or steal sensitive 
+      data from device storage.
+    affected_components: [iot_devices, edge_gateway]
+    affected_assets: [device_credentials, sensor_data, firmware]
+
+  - ref: device_resource_exhaustion
+    name: Device Resource Exhaustion
+    description: |
+      Attackers flood IoT devices with requests or commands, exhausting limited CPU, memory, 
+      or battery resources. This causes devices to crash, become unresponsive, or drain 
+      batteries, creating denial of service.
+    affected_components: [iot_devices, edge_gateway, iot_hub]
+    affected_data_flows: [edge_gateway<->iot_hub, iot_devices<->iot_hub]
+
+  - ref: message_replay
+    name: Message Replay Attack
+    description: |
+      An attacker captures legitimate device messages and replays them later to inject false 
+      data, trigger duplicate actions, or bypass authentication. Lack of timestamps, nonces, 
+      or message counters enables this attack.
+    affected_components: [iot_hub, message_broker]
+    affected_data_flows: [iot_hub->message_broker]
+    affected_assets: [sensor_data, device_commands]
+
+  - ref: insecure_device_provisioning
+    name: Insecure Device Provisioning
+    description: |
+      Devices are provisioned with default credentials, weak keys, or predictable identifiers 
+      that attackers can exploit. Poor provisioning processes allow unauthorized devices to 
+      join the network or impersonate legitimate devices.
+    affected_components: [device_registry, device_management, iot_devices]
+    affected_assets: [device_credentials]
+
+  - ref: data_injection
+    name: Data Injection
+    description: |
+      An attacker injects false or manipulated sensor data into the platform, causing incorrect 
+      analytics, triggering wrong automated actions, or polluting data used for business decisions 
+      or machine learning models.
+    affected_components: [iot_hub, message_broker, stream_processing]
+    affected_data_flows: [iot_hub->message_broker, message_broker->stream_processing]
+    affected_assets: [sensor_data]
+
+  - ref: unauthorized_device_control
+    name: Unauthorized Device Control
+    description: |
+      Attackers gain the ability to send commands to IoT devices without authorization, 
+      controlling actuators, changing device configurations, or disrupting operations. 
+      This is especially dangerous for industrial or safety-critical systems.
+    affected_components: [iot_hub, device_management, rules_engine]
+    affected_data_flows: [rules_engine->iot_hub]
+    affected_assets: [device_commands]
+
+  - ref: device_identity_theft
+    name: Device Identity Theft
+    description: |
+      Device credentials stored in the registry are accessed by unauthorized users or services, 
+      allowing them to impersonate devices, access device-specific data, or perform operations 
+      on behalf of those devices.
+    affected_components: [device_registry]
+    affected_assets: [device_credentials]
+
+  - ref: telemetry_flooding
+    name: Telemetry Flooding
+    description: |
+      Compromised or malicious devices send excessive telemetry data to overwhelm the message 
+      broker, stream processing, or storage systems, causing performance degradation, increased 
+      costs, or denial of service.
+    affected_components: [iot_hub, message_broker, stream_processing]
+    affected_data_flows: [iot_hub->message_broker]
+
+  - ref: insecure_api_access
+    name: Insecure API Access
+    description: |
+      The API backend lacks proper authentication, authorization, or rate limiting, allowing 
+      unauthorized access to sensitive sensor data, device management functions, or the ability 
+      to send commands to devices.
+    affected_components: [api_backend]
+    affected_assets: [sensor_data, device_commands, user_data]
+
+  - ref: time_series_data_tampering
+    name: Time Series Data Tampering
+    description: |
+      Historical sensor data stored in the time-series database is modified or deleted by 
+      attackers, compromising data integrity for analytics, compliance, or forensic analysis.
+    affected_components: [time_series_db]
+    affected_assets: [sensor_data]
+
+  - ref: lateral_movement_from_device
+    name: Lateral Movement from Device
+    description: |
+      A compromised IoT device or gateway is used as an entry point to attack other devices 
+      on the network, backend systems, or pivot to other parts of the infrastructure. Flat 
+      network architectures increase this risk.
+    affected_components: [iot_devices, edge_gateway]
+    affected_assets: [device_credentials, sensor_data]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: device_certificates
+    name: Device Certificates
+    description: Use X.509 certificates or hardware-backed keys for device authentication instead of passwords. Implement certificate-based mutual TLS for device connections.
+    mitigates: [device_impersonation, insecure_device_provisioning, device_identity_theft]
+    implemented_in: [iot_devices, iot_hub, device_registry]
+
+  - ref: encrypted_communication
+    name: Encrypted Communication
+    description: Enforce TLS 1.3 for all device-to-cloud communication. Use MQTT over TLS or HTTPS only. Disable insecure protocols at the IoT Hub level.
+    mitigates: [insecure_device_communication, message_replay]
+    implemented_in: [iot_hub, iot_devices, edge_gateway]
+
+  - ref: firmware_signing
+    name: Firmware Signing and Verification
+    description: Cryptographically sign all firmware images. Devices must verify signatures before installing updates. Use secure boot to prevent modified firmware from running.
+    mitigates: [firmware_tampering, physical_device_tampering]
+    implemented_in: [firmware_storage, device_management, iot_devices]
+
+  - ref: device_attestation
+    name: Device Attestation
+    description: Implement hardware-based device attestation (TPM, Secure Enclave) to verify device integrity and detect tampering before allowing network access.
+    mitigates: [physical_device_tampering, device_impersonation]
+    implemented_in: [iot_devices, iot_hub]
+
+  - ref: rate_limiting_throttling
+    name: Rate Limiting and Throttling
+    description: Implement rate limits on device message ingestion, API calls, and command sending to prevent resource exhaustion and flooding attacks.
+    mitigates: [device_resource_exhaustion, telemetry_flooding, insecure_api_access]
+    implemented_in: [iot_hub, api_backend, message_broker]
+
+  - ref: message_deduplication
+    name: Message Deduplication
+    description: Use message timestamps, sequence numbers, and nonces to detect and reject replay attacks. Implement message expiration policies.
+    mitigates: [message_replay, data_injection]
+    implemented_in: [iot_hub, message_broker]
+
+  - ref: secure_provisioning
+    name: Secure Device Provisioning
+    description: Use secure provisioning protocols (DPS, zero-touch) that generate unique per-device credentials. Never use default or shared credentials across devices.
+    mitigates: [insecure_device_provisioning, device_impersonation]
+    implemented_in: [device_registry, device_management]
+
+  - ref: data_validation
+    name: Data Validation
+    description: Validate sensor data ranges, formats, and consistency at ingestion. Implement anomaly detection to identify suspicious or impossible readings.
+    mitigates: [data_injection, telemetry_flooding]
+    implemented_in: [iot_hub, stream_processing]
+
+  - ref: command_authorization
+    name: Command Authorization
+    description: Implement fine-grained authorization for device commands based on user roles and device ownership. Audit all command operations.
+    mitigates: [unauthorized_device_control, insecure_api_access]
+    implemented_in: [device_management, rules_engine, api_backend]
+
+  - ref: credential_rotation
+    name: Credential Rotation
+    description: Automatically rotate device certificates and keys on a regular schedule. Revoke credentials for compromised or decommissioned devices immediately.
+    mitigates: [device_identity_theft, device_impersonation]
+    implemented_in: [device_registry, device_management]
+
+  - ref: network_segmentation
+    name: Network Segmentation
+    description: Isolate IoT devices on separate network segments from corporate networks. Use firewalls and VLANs to prevent lateral movement.
+    mitigates: [lateral_movement_from_device]
+    implemented_in: [edge_gateway, iot_devices]
+
+  - ref: api_authentication
+    name: API Authentication and Authorization
+    description: Require authentication for all API endpoints. Implement OAuth 2.0 or JWT tokens. Use role-based access control to limit data access.
+    mitigates: [insecure_api_access]
+    implemented_in: [api_backend, auth_service]
+
+  - ref: data_integrity_monitoring
+    name: Data Integrity Monitoring
+    description: Implement audit logs and integrity checks for time-series data. Use append-only storage or blockchain for critical data immutability.
+    mitigates: [time_series_data_tampering]
+    implemented_in: [time_series_db]
+
+  - ref: device_monitoring
+    name: Device Monitoring and Anomaly Detection
+    description: Monitor device behavior, connection patterns, and data characteristics. Alert on anomalies like unusual connection sources, data rates, or command patterns.
+    mitigates: [device_impersonation, lateral_movement_from_device, telemetry_flooding]
+    implemented_in: [iot_hub, stream_processing]
+
+  - ref: physical_security
+    name: Physical Security Measures
+    description: Use tamper-evident seals, secure enclosures, and tamper detection circuits. Deploy devices in locked or monitored locations when possible.
+    mitigates: [physical_device_tampering]
+    implemented_in: [iot_devices, edge_gateway]

@@ -1,0 +1,569 @@
+schema_version: '1.0'
+name: GitHub Integration - FlowState TM
+description: Threat model for the planned GitHub integration feature in FlowState TM, enabling users to load, save, and manage threat models stored in GitHub repositories using Personal Access Tokens (PATs) for authentication.
+
+# Assets - Data or resources that need protection
+assets:
+  - ref: github_pat
+    name: GitHub Personal Access Token
+    description: User's GitHub PAT with contents (read/write) and issues (write) permissions. Grants access to repositories and ability to create issues. Compromise allows unauthorized repository access and modifications.
+
+  - ref: threat_model_files
+    name: Threat Model Files in Repository
+    description: YAML threat model files stored in /.threat-models/ directory in GitHub repositories. May contain sensitive architecture details, identified vulnerabilities, and security controls.
+
+  - ref: github_metadata
+    name: GitHub Metadata
+    description: Session metadata including repository owner, name, branch, file path, SHA, and load timestamp. Used for conflict detection and sync operations.
+
+  - ref: repository_contents
+    name: Repository Contents
+    description: Other files and code in the GitHub repository that the PAT has access to. Could include source code, configuration files, and secrets.
+
+  - ref: issue_data
+    name: GitHub Issues
+    description: Issue tracking data including titles, descriptions, labels, and control implementation details. Links back to threat model controls.
+
+  - ref: user_session
+    name: User Session State
+    description: In-memory application state including PAT (if stored), GitHub metadata, and unsaved changes. Loss or exposure could impact user work or security.
+
+# Components - System building blocks
+components:
+  - ref: user
+    name: Threat Modeler (User)
+    component_type: external_dependency
+    description: Security analyst or developer using GitHub integration to manage threat models
+    x: 200
+    y: -157
+
+  - ref: browser
+    name: Web Browser
+    component_type: external_dependency
+    description: User's browser environment running the FlowState TM application with sessionStorage
+    assets: [github_pat, github_metadata, user_session]
+    x: 200
+    y: 0
+
+  - ref: react_app
+    name: React Application
+    component_type: internal
+    description: FlowState TM frontend application handling GitHub API integration, PAT management, and UI interactions
+    assets: [github_pat, github_metadata, user_session]
+    x: 200
+    y: 150
+
+  - ref: github_api
+    name: GitHub REST API
+    component_type: external_dependency
+    description: GitHub.com REST APIs providing repository access, content management, and issue tracking
+    assets: [threat_model_files, repository_contents, issue_data]
+    x: 201
+    y: 292
+
+  - ref: github_repository
+    name: GitHub Repository
+    component_type: data_store
+    description: Git repository storing threat model YAML files in /.threat-models/ directory along with other project files
+    assets: [threat_model_files, repository_contents]
+    x: 200
+    y: 416
+
+  - ref: session_storage
+    name: Browser SessionStorage
+    component_type: data_store
+    description: Browser storage for temporarily persisting GitHub PAT (optional, with user consent and 1-hour timeout)
+    assets: [github_pat]
+    x: 357
+    y: -16
+
+  - ref: indexed_db
+    name: IndexedDB
+    component_type: data_store
+    description: Browser persistent storage for threat models and associated GitHub metadata
+    assets: [threat_model_files, github_metadata]
+    x: 42
+    y: 0
+
+# Data Flows - Connections between components
+data_flows:
+  - ref: user<->browser
+    source: user
+    destination: browser
+    direction: bidirectional
+    label: User Input/Display
+    source_point: bottom-2
+    destination_point: top-2
+
+  - ref: browser<->react_app
+    source: browser
+    destination: react_app
+    direction: bidirectional
+    label: JavaScript Execution
+    source_point: bottom-2
+    destination_point: top-2
+
+  - ref: react_app<->github_api
+    source: react_app
+    destination: github_api
+    direction: bidirectional
+    label: HTTPS/REST API
+    source_point: bottom-2
+    destination_point: top-2
+
+  - ref: github_api<->github_repository
+    source: github_api
+    destination: github_repository
+    direction: bidirectional
+    label: Git Operations
+    source_point: bottom-2
+    destination_point: top-2
+
+  - ref: react_app<->session_storage
+    source: react_app
+    destination: session_storage
+    direction: bidirectional
+    label: PAT Storage
+    source_point: right-2
+    destination_point: bottom-2
+
+  - ref: react_app<->indexed_db
+    source: react_app
+    destination: indexed_db
+    direction: bidirectional
+    label: Metadata & Files
+    source_point: left-2
+    destination_point: bottom-2
+
+# Boundaries - Trust boundaries in the system
+boundaries:
+  - ref: user_environment
+    name: User Environment
+    description: User's local browser environment - untrusted due to extensions, malware, and physical access
+    components: [browser, session_storage, indexed_db]
+    x: 28
+    y: -86
+    width: 490
+    height: 141
+
+  - ref: github_cloud
+    name: GitHub Cloud Services
+    description: GitHub's infrastructure - trusted for availability and integrity but external to user control
+    x: 181
+    y: 266
+    width: 184
+    height: 229
+    components: [github_api, github_repository]
+
+# Threats - Potential security risks using STRIDE methodology
+threats:
+  - ref: pat_theft_xss
+    name: PAT Theft via XSS
+    description: |
+      Attacker injects malicious JavaScript into the application through XSS vulnerabilities.
+      The script accesses sessionStorage or memory to steal the GitHub PAT.
+      Stolen PAT can be exfiltrated to attacker-controlled server and used to access victim's repositories.
+      Impact: Full repository access, ability to modify code and create malicious commits/issues.
+      Attack vectors: Stored XSS in threat model data, DOM-based XSS in GitHub responses, compromised dependencies.
+    affected_components: [react_app, browser]
+    affected_data_flows: [browser<->react_app, react_app<->session_storage]
+    affected_assets: [github_pat, repository_contents]
+
+  - ref: pat_theft_browser_extension
+    name: PAT Theft via Browser Extension
+    description: |
+      Malicious or compromised browser extension reads PAT from sessionStorage or intercepts API calls.
+      Extensions have broad access to page content and can inject scripts or monitor network traffic.
+      Impact: Repository access, code modification, data exfiltration.
+      Attack vectors: User installs malicious extension, legitimate extension gets compromised.
+    affected_components: [browser, session_storage]
+    affected_assets: [github_pat]
+
+  - ref: pat_theft_physical_access
+    name: PAT Exposure via Physical Access
+    description: |
+      Attacker with physical access to unlocked device reads PAT from sessionStorage using browser DevTools.
+      PAT remains accessible until browser tab closes or 1-hour timeout expires.
+      Impact: Repository access during PAT validity period.
+      Attack vectors: Unlocked workstation, shared computer, shoulder surfing during PAT entry.
+    affected_components: [browser, session_storage]
+    affected_assets: [github_pat]
+
+  - ref: excessive_pat_scope
+    name: Excessive PAT Permissions
+    description: |
+      User creates PAT with broader permissions than required (e.g., admin access, delete permissions).
+      If PAT is compromised, attacker gains elevated privileges beyond read/write contents and issues.
+      Impact: Repository deletion, access to all user repositories, organization-level access.
+      Attack vectors: User unfamiliarity with PAT scopes, copy-paste from insecure tutorial.
+    affected_components: [github_api]
+    affected_assets: [github_pat, repository_contents]
+
+  - ref: mitm_api_interception
+    name: Man-in-the-Middle API Interception
+    description: |
+      Attacker intercepts HTTPS traffic between React app and GitHub API through compromised network, CA, or TLS downgrade.
+      Can steal PAT from Authorization headers or modify API responses to inject malicious content.
+      Impact: PAT theft, malicious threat model injection, repository compromise.
+      Attack vectors: Corporate SSL inspection, compromised WiFi, malicious proxy, nation-state attacks.
+    affected_components: [react_app, github_api]
+    affected_data_flows: [react_app<->github_api]
+    affected_assets: [github_pat, threat_model_files]
+
+  - ref: malicious_repository_content
+    name: Malicious Repository Content Injection
+    description: |
+      Attacker with repository access commits malicious YAML files designed to exploit parsing vulnerabilities.
+      Could include YAML bombs, billion laughs attacks, prototype pollution, or XSS payloads in strings.
+      When user loads file, application parses malicious content triggering vulnerability.
+      Impact: Denial of service, code execution, XSS attacks, application crash.
+      Attack vectors: Compromised collaborator account, stolen PAT, malicious PR merged without review.
+    affected_components: [github_repository, react_app]
+    affected_data_flows: [github_api<->github_repository, react_app<->github_api]
+    affected_assets: [threat_model_files, user_session]
+
+  - ref: unauthorized_repository_access
+    name: Unauthorized Repository Access
+    description: |
+      User enters wrong repository owner/name or selects wrong branch, accidentally accessing repositories they shouldn't.
+      Could expose private threat models from other teams or projects.
+      Impact: Information disclosure, accidental data leakage between projects.
+      Attack vectors: Typo in repository name, similar repository names, unclear access permissions.
+    affected_components: [react_app, github_api]
+    affected_assets: [threat_model_files]
+
+  - ref: commit_conflict_data_loss
+    name: Commit Conflict Leading to Data Loss
+    description: |
+      User's threat model becomes stale while editing. When committing, newer version exists in repository.
+      If user overwrites without merging, recent changes by other users are lost.
+      Alternatively, if user's changes are discarded, their work is lost.
+      Impact: Data loss, frustration, duplicated effort, inconsistent threat models.
+      Attack vectors: Multiple users editing same file, long editing sessions, network interruptions.
+    affected_components: [react_app, github_repository]
+    affected_data_flows: [react_app<->github_api, github_api<->github_repository]
+    affected_assets: [threat_model_files, user_session]
+
+  - ref: csrf_github_actions
+    name: CSRF Attacks on GitHub Operations
+    description: |
+      Attacker tricks authenticated user into performing unwanted GitHub operations via CSRF.
+      Could trick user into committing malicious threat model, creating spam issues, or deleting files.
+      Impact: Unauthorized commits, issue spam, repository pollution, reputation damage.
+      Attack vectors: Malicious website visited by user while PAT in sessionStorage, phishing emails.
+    affected_components: [react_app, github_api]
+    affected_data_flows: [react_app<->github_api]
+    affected_assets: [threat_model_files, issue_data]
+
+  - ref: metadata_tampering
+    name: GitHub Metadata Tampering
+    description: |
+      Attacker modifies GitHub metadata stored in IndexedDB or sessionStorage.
+      Could redirect commits to wrong repository, wrong branch, or wrong file path.
+      Impact: Commits to wrong location, data loss, information disclosure, confusion.
+      Attack vectors: Malicious scripts, browser extension, physical access, XSS.
+    affected_components: [indexed_db, react_app]
+    affected_assets: [github_metadata]
+
+  - ref: branch_confusion
+    name: Branch Confusion Attack
+    description: |
+      User commits threat model to wrong branch (e.g., production instead of dev).
+      Could expose work-in-progress threat models or trigger unintended CI/CD pipelines.
+      Impact: Premature disclosure, accidental deployments, CI/CD issues.
+      Attack vectors: UI confusion, default branch selection, similar branch names.
+    affected_components: [react_app, github_repository]
+    affected_assets: [threat_model_files]
+
+  - ref: rate_limiting_dos
+    name: Rate Limiting Denial of Service
+    description: |
+      Application makes excessive GitHub API calls triggering rate limits.
+      Could be accidental (inefficient sync logic) or intentional (malicious script).
+      User becomes unable to perform GitHub operations.
+      Impact: Service disruption, inability to save work, frustration.
+      Attack vectors: Bug in sync logic, aggressive polling, malicious automation.
+    affected_components: [react_app, github_api]
+    affected_data_flows: [react_app<->github_api]
+
+  - ref: issue_link_hijacking
+    name: Issue Link Hijacking
+    description: |
+      Attacker modifies status_link in threat model to point to malicious URL.
+      When user clicks link expecting GitHub issue, they visit phishing site.
+      Impact: Credential theft, malware installation, phishing.
+      Attack vectors: Repository access, XSS, malicious commit, compromised collaborator.
+    affected_components: [react_app, github_repository]
+    affected_assets: [issue_data, threat_model_files]
+
+  - ref: stale_issue_sync
+    name: Stale Issue Status Sync
+    description: |
+      Sync logic fails to properly update control status based on GitHub issue state.
+      Could show controls as "Done" when issues are reopened or vice versa.
+      Impact: Incorrect security posture assessment, missed vulnerabilities, false confidence.
+      Attack vectors: API errors, network issues, sync logic bugs, issue state manipulation.
+    affected_components: [react_app, github_api]
+    affected_assets: [issue_data, threat_model_files]
+
+  - ref: pat_leakage_logs
+    name: PAT Leakage in Logs
+    description: |
+      Application accidentally logs GitHub PAT in browser console, error messages, or analytics.
+      PAT could be captured by error tracking services, browser extensions, or screen recordings.
+      Impact: PAT exposure, unauthorized repository access.
+      Attack vectors: Verbose error logging, debug mode enabled in production, insecure error handling.
+    affected_components: [react_app]
+    affected_assets: [github_pat]
+
+  - ref: repo_enumeration
+    name: Repository Enumeration Attack
+    description: |
+      Attacker uses file browser to enumerate repositories and branches user has access to.
+      Could reveal existence of private repositories or sensitive project names.
+      Impact: Information disclosure, reconnaissance for further attacks.
+      Attack vectors: Shared computer, recorded screen sessions, shoulder surfing.
+    affected_components: [react_app, github_api]
+    affected_assets: [repository_contents]
+
+# Controls - Security measures to mitigate threats
+controls:
+  - ref: pat_session_storage_optional
+    name: Optional PAT Storage with Informed Consent
+    description: |
+      Implement PAT storage as opt-in feature requiring explicit user consent.
+      Default behavior: PAT only used once and discarded after operation.
+      Optional: Store in sessionStorage with clear warning about risks (extensions, physical access).
+      Display toggle with risk explanation and recommendation against storage.
+    mitigates: [pat_theft_browser_extension, pat_theft_physical_access, pat_theft_xss]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: pat_auto_expiry
+    name: PAT Auto-Expiry Mechanisms
+    description: |
+      Implement multiple PAT expiry triggers:
+      - Automatic deletion after 1 hour of inactivity
+      - Automatic deletion on beforeUnload event (tab/window close)
+      - Manual "Forget PAT" button in settings
+      Use setTimeout for inactivity tracking, reset on user actions.
+    mitigates: [pat_theft_physical_access, pat_theft_browser_extension]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: minimal_pat_scope_guidance
+    name: Minimal PAT Scope Guidance
+    description: |
+      Provide clear in-app guidance for PAT creation:
+      - Required scopes: contents (read/write for single repo), issues (write)
+      - Recommend fine-grained PATs over classic PATs (when available)
+      - Recommend repository-specific PATs, not organization-wide
+      - Link to GitHub PAT creation docs with screenshots
+      - Validate PAT scopes via API and warn if excessive permissions detected
+    mitigates: [excessive_pat_scope]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: https_only_github_api
+    name: HTTPS-Only GitHub API Communication
+    description: |
+      Enforce HTTPS for all GitHub API requests.
+      Use Fetch API with strict HTTPS URLs only.
+      Implement certificate pinning if feasible for known GitHub endpoints.
+      Reject any HTTP downgrade attempts.
+    mitigates: [mitm_api_interception]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: yaml_validation_github_files
+    name: YAML Validation for GitHub Files
+    description: |
+      Apply same strict YAML validation to files loaded from GitHub as local files:
+      - Schema validation against threat_model.schema.json
+      - Parsing limits (maxAliasCount, CORE_SCHEMA, JSON mode)
+      - Input sanitization for all string fields before rendering
+      - Reject files exceeding size limits (e.g., 5MB)
+    mitigates: [malicious_repository_content]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: repository_access_confirmation
+    name: Repository Access Confirmation
+    description: |
+      Display repository owner, name, and branch prominently before load operations.
+      Require explicit user confirmation: "Load from owner/repo:branch?"
+      Show repository visibility (public/private) if available from API.
+      Implement recent repository list for quick access while avoiding typos.
+    mitigates: [unauthorized_repository_access, branch_confusion]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: conflict_detection_resolution
+    name: Conflict Detection and Resolution
+    description: |
+      Store file SHA and load timestamp in GitHub metadata.
+      Before commit, check if repository file SHA has changed.
+      If conflict detected, show diff and offer options:
+      - View changes in repository
+      - Overwrite (with warning)
+      - Cancel and manual merge
+      Never silently overwrite newer versions.
+    mitigates: [commit_conflict_data_loss]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: csrf_protection_github
+    name: CSRF Protection for GitHub Operations
+    description: |
+      Implement CSRF tokens for all GitHub operations.
+      Validate origin and referer headers on sensitive operations.
+      Use SameSite cookies for any session management.
+      Require user confirmation for destructive operations (commits, issue creation).
+    mitigates: [csrf_github_actions]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: metadata_integrity_checks
+    name: GitHub Metadata Integrity Checks
+    description: |
+      Validate GitHub metadata structure before use:
+      - Repository owner/name format validation (regex)
+      - Branch name validation
+      - Path validation (must be in /.threat-models/)
+      - SHA format validation (40-character hex)
+      Store metadata with cryptographic signature or HMAC to detect tampering.
+    mitigates: [metadata_tampering, branch_confusion]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: branch_selection_ui
+    name: Clear Branch Selection UI
+    description: |
+      Implement prominent branch selector with:
+      - Current branch clearly displayed
+      - Default branch highlighted differently
+      - Protected branch indicators
+      - Confirmation for commits to main/master branches
+      - Recent branches list
+      Fetch branch protection status from API and warn users.
+    mitigates: [branch_confusion]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: rate_limit_handling
+    name: Rate Limit Handling and Backoff
+    description: |
+      Implement exponential backoff for GitHub API calls.
+      Check rate limit headers in responses and display remaining quota to user.
+      Implement request queueing to avoid burst requests.
+      Cache API responses (branches, file lists) with appropriate TTL.
+      Show user-friendly errors when rate limited with retry countdown.
+    mitigates: [rate_limiting_dos]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: issue_link_validation
+    name: Issue Link URL Validation
+    description: |
+      Validate all status_link URLs before display or navigation:
+      - Must be HTTPS
+      - Domain must match configured GitHub domain (github.com)
+      - Path must match issue URL format: /owner/repo/issues/number
+      Display warning if status_link points to external domain.
+      Use noopener,noreferrer when opening links.
+    mitigates: [issue_link_hijacking]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: sync_error_handling
+    name: Robust Sync Error Handling
+    description: |
+      Implement comprehensive error handling for issue sync:
+      - Handle 404 (issue deleted) → clear status_link and warn user
+      - Handle 403 (access denied) → warn about permissions
+      - Handle rate limits → defer sync
+      - Handle network errors → retry with backoff
+      Show sync status in UI (last sync time, errors).
+      Allow manual sync trigger.
+    mitigates: [stale_issue_sync]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: pat_sanitization_logging
+    name: PAT Sanitization in Logging
+    description: |
+      Implement PAT sanitization in all logging and error handling:
+      - Redact Authorization headers in error messages
+      - Mask PAT in console logs (show only first/last 4 chars)
+      - Exclude PAT from error reporting services
+      - Audit all log statements to ensure no PAT leakage
+      Disable verbose logging in production builds.
+    mitigates: [pat_leakage_logs]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: repo_list_access_control
+    name: Repository List Access Control
+    description: |
+      Minimize repository enumeration exposure:
+      - Only show repositories when explicitly loading
+      - Don't persist repository lists in storage
+      - Clear repository picker on logout/PAT expiry
+      - Consider pagination instead of full lists
+      Warn users about screen recording/sharing during GitHub operations.
+    mitigates: [repo_enumeration]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: csp_github_domains
+    name: CSP Whitelist for GitHub Domains
+    description: |
+      Update Content Security Policy to whitelist only required GitHub domains:
+      - connect-src: 'self' https://api.github.com
+      - Explicitly block other domains to prevent exfiltration
+      - Monitor for CSP violations
+    mitigates: [pat_theft_xss, mitm_api_interception]
+    implemented_in: [react_app]
+    status: To Do
+    status_note: Already partially implemented - index.html includes GitHub API domains in CSP connect-src
+
+  - ref: user_security_guidance
+    name: User Security Guidance
+    description: |
+      Provide in-app security guidance for GitHub integration:
+      - PAT security best practices
+      - Repository access recommendations
+      - Risk of browser extensions
+      - Importance of screen lock
+      - Warning against storing PATs
+      - Guide for creating minimal-scope PATs
+      Link to security documentation from PAT modal and settings.
+    mitigates: [pat_theft_physical_access, pat_theft_browser_extension, excessive_pat_scope]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: protected_branch_warnings
+    name: Protected Branch Warnings
+    description: |
+      Detect protected branches via GitHub API branch protection endpoint.
+      Warn users before attempting commits to protected branches.
+      Suggest creating feature branch for commits requiring reviews/checks.
+      Display branch protection rules (required reviews, checks, etc.).
+    mitigates: [commit_conflict_data_loss, branch_confusion]
+    implemented_in: [react_app]
+    status: To Do
+
+  - ref: audit_logging
+    name: Audit Logging for GitHub Operations
+    description: |
+      Log all GitHub operations locally (not sent to server):
+      - PAT creation/deletion events
+      - Repository access (owner, repo, branch)
+      - Commits (timestamp, branch, result)
+      - Issue creation (issue URL, control ref)
+      - Sync operations (issues synced, errors)
+      Store logs in IndexedDB with retention policy.
+      Provide audit log export for users.
+    mitigates: [unauthorized_repository_access, csrf_github_actions, metadata_tampering]
+    implemented_in: [react_app]
+    status: To Do

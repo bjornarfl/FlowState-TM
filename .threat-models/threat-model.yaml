@@ -1,0 +1,478 @@
+schema_version: '1.0'
+name: FlowState TM - Threat Modeling Application
+description: Threat model for the FlowState TM application itself - a browser-based threat modeling tool for creating, editing, and visualizing threat models using YAML and interactive diagrams.
+owner: secscanbaseline
+repository: flowstate-tm
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: threat_model_data
+    name: Threat Model Data
+    description: User-created threat models containing sensitive architecture information, identified threats, controls, and security assessments. This is the user's intellectual property and may reveal security vulnerabilities in their systems.
+  
+  - ref: user_session_state
+    name: User Session State
+    description: In-memory application state including unsaved changes, undo/redo history, and current editing context. Loss results in work loss.
+  
+  - ref: template_library
+    name: Template Library
+    description: Pre-built threat model templates and examples. Tampering could mislead users into creating inadequate threat models.
+  
+  - ref: application_code
+    name: Application Code
+    description: Frontend TypeScript/React code, dependencies, and build artifacts. Integrity is critical to prevent malicious modifications.
+
+# Components - Represents the objects in a threat model
+components:
+  - ref: threat_modeler
+    name: Threat Modeler (User)
+    component_type: external_dependency
+    x: -157
+    y: -346
+    description: Security analyst or developer creating threat models for their systems
+
+  - ref: web_browser
+    name: Web Browser
+    component_type: external_dependency
+    x: 0
+    y: -193
+    description: User's browser environment running the React application (Chrome, Firefox, Safari, Edge)
+    assets: [user_session_state, threat_model_data]
+
+  - ref: react_application
+    name: React Application
+    component_type: internal
+    x: -157
+    y: 8
+    description: Main TypeScript/React SPA handling UI, state management, and user interactions
+    assets: [user_session_state, application_code]
+
+  - ref: yaml_parser
+    name: YAML Parser
+    component_type: internal
+    x: 112
+    y: -68
+    description: Component parsing and validating YAML threat model files against schema
+    assets: [threat_model_data]
+
+  - ref: canvas_editor
+    name: Canvas Editor (React Flow)
+    component_type: internal
+    x: 113
+    y: -4
+    description: Interactive diagram editor for visual threat modeling using React Flow library
+    assets: [threat_model_data, user_session_state]
+
+  - ref: table_editors
+    name: Table Editors
+    component_type: internal
+    x: 110
+    y: 76
+    description: Editable tables for managing assets, threats, controls, and data flows
+    assets: [threat_model_data, user_session_state]
+
+  - ref: browser_storage
+    name: Browser Local Storage
+    component_type: data_store
+    x: -158
+    y: -211
+    description: Browser's localStorage API for auto-save and state persistence
+    assets: [threat_model_data, user_session_state]
+
+  - ref: file_system
+    name: File System
+    component_type: data_store
+    x: -320
+    y: -192
+    description: User's local file system for loading and saving YAML threat model files
+    assets: [threat_model_data]
+
+  - ref: cdn_hosting
+    name: CDN/Static Hosting
+    component_type: external_dependency
+    x: -239
+    y: 178
+    description: Content delivery network or static hosting platform serving the application (GitHub Pages)
+    assets: [application_code, template_library]
+
+  - ref: npm_dependencies
+    name: NPM Dependencies
+    component_type: external_dependency
+    x: -61
+    y: 178
+    description: Third-party npm packages (React, React Flow, js-yaml, etc.) bundled in the application
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: threat_modeler<->web_browser
+    source: threat_modeler
+    destination: web_browser
+    source_point: bottom-3
+    destination_point: top-2
+    direction: bidirectional
+    label: Interact
+
+  - ref: cdn_hosting->react_application
+    source: cdn_hosting
+    destination: react_application
+    source_point: top-2
+    destination_point: bottom-1
+    direction: unidirectional
+    label: Serve App
+
+  - ref: web_browser<->react_application
+    source: web_browser
+    destination: react_application
+    source_point: bottom-2
+    destination_point: top-3
+    direction: bidirectional
+    label: Run/Render
+
+  - ref: threat_modeler<->file_system
+    source: threat_modeler
+    destination: file_system
+    source_point: bottom-1
+    destination_point: top-2
+    direction: bidirectional
+    label: Load/Save Files
+
+  - ref: file_system<->react_application
+    source: file_system
+    destination: react_application
+    source_point: bottom-2
+    destination_point: top-1
+    direction: bidirectional
+    label: Read/Write YAML
+
+  - ref: react_application<->yaml_parser
+    source: react_application
+    destination: yaml_parser
+    source_point: right-1
+    destination_point: left-2
+    direction: bidirectional
+    label: Parse/Serialize
+
+  - ref: react_application<->canvas_editor
+    source: react_application
+    destination: canvas_editor
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Render Diagram
+
+  - ref: react_application<->table_editors
+    source: react_application
+    destination: table_editors
+    source_point: right-3
+    destination_point: left-2
+    direction: bidirectional
+    label: Edit Data
+
+  - ref: react_application<->browser_storage
+    source: react_application
+    destination: browser_storage
+    source_point: top-2
+    destination_point: bottom-2
+    direction: bidirectional
+    label: Auto-save
+
+  - ref: react_application->file_system
+    source: react_application
+    destination: file_system
+    source_point: left-2
+    destination_point: bottom-1
+    direction: unidirectional
+    label: Download/ Export
+
+  - ref: npm_dependencies->react_application
+    source: npm_dependencies
+    destination: react_application
+    source_point: top-2
+    destination_point: bottom-3
+    direction: unidirectional
+    label: Bundle Code
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: user_browser_boundary
+    name: React Application
+    x: -197
+    y: -113
+    width: 468
+    height: 270
+    components: [react_application, yaml_parser, canvas_editor, table_editors]
+
+  - ref: user_device
+    name: User's Device
+    x: -342
+    y: -230
+    width: 496
+    height: 101
+    components: [web_browser, browser_storage, file_system]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: xss_injection
+    name: Cross-Site Scripting (XSS)
+    description: |
+      Attacker injects malicious JavaScript through threat model content (component names, 
+      descriptions, threat details) that gets executed when rendered in the browser. This 
+      could steal data, modify threat models, or compromise the user's session. React's 
+      default escaping provides some protection, but improper use of dangerouslySetInnerHTML 
+      or rendering of raw HTML could enable XSS.
+    affected_components: [react_application, canvas_editor, table_editors]
+    affected_assets: [threat_model_data, user_session_state]
+    affected_data_flows: [threat_modeler<->web_browser, web_browser<->react_application]
+
+  - ref: malicious_yaml_file
+    name: Malicious YAML File
+    description: |
+      User loads a malicious YAML file crafted to exploit parsing vulnerabilities (YAML 
+      bombs, billion laughs attack, code execution via unsafe deserialization). The js-yaml 
+      library or custom parser could be vulnerable to specially crafted input causing DoS, 
+      memory exhaustion, or code execution.
+    affected_components: [yaml_parser, react_application]
+    affected_data_flows: [file_system<->react_application, react_application<->yaml_parser]
+    affected_assets: [threat_model_data, user_session_state]
+
+  - ref: template_tampering
+    name: Template Tampering
+    description: |
+      Attacker compromises the CDN or build pipeline to inject malicious content into threat 
+      model templates. Users loading these templates unknowingly import backdoored or misleading 
+      threat models that omit critical threats or recommend ineffective controls. This could 
+      lead to insecure architectures in production systems.
+    affected_components: [cdn_hosting, react_application]
+    affected_assets: [template_library, threat_model_data]
+
+  - ref: dependency_vulnerabilities
+    name: Dependency Vulnerabilities
+    description: |
+      Third-party npm packages (React Flow, js-yaml, Vite, etc.) contain known vulnerabilities 
+      that could be exploited for XSS, prototype pollution, RCE, or DoS. Outdated dependencies 
+      or supply chain attacks (compromised packages) introduce malicious code into the application.
+    affected_components: [npm_dependencies, react_application]
+    affected_assets: [application_code, threat_model_data]
+
+  - ref: local_storage_exposure
+    name: Local Storage Data Exposure
+    description: |
+      Sensitive threat model data stored in browser localStorage is accessible to browser 
+      extensions, malware, or other scripts running in the same origin. Physical access to 
+      an unlocked device also exposes this data. Threat models may contain sensitive 
+      architecture details that should not be persistently stored in cleartext.
+    affected_components: [browser_storage, web_browser]
+    affected_data_flows: [react_application<->browser_storage]
+    affected_assets: [threat_model_data, user_session_state]
+
+  - ref: prototype_pollution
+    name: Prototype Pollution
+    description: |
+      Attacker crafts YAML or JSON input that pollutes JavaScript object prototypes through 
+      unsafe object merging or property assignment. This could lead to logic bypass, privilege 
+      escalation, or code execution if the application relies on prototype properties for 
+      security decisions or functionality.
+    affected_components: [yaml_parser, react_application]
+    affected_assets: [user_session_state, application_code]
+
+  - ref: data_loss_browser_clearing
+    name: Data Loss from Browser Clearing
+    description: |
+      User clears browser data, browser crashes, or storage quota is exceeded, causing loss 
+      of unsaved threat models or work in progress. No recovery mechanism exists for data 
+      only stored in localStorage without corresponding file system saves.
+    affected_components: [browser_storage, react_application]
+    affected_assets: [threat_model_data, user_session_state]
+
+  - ref: diagram_export_information_disclosure
+    name: Diagram Export Information Disclosure
+    description: |
+      Exported diagram images (PNG/SVG) contain sensitive architecture details that get 
+      shared insecurely via email, chat, or public documentation. No watermarking or 
+      classification marking alerts recipients to sensitivity. Exported files lack access 
+      controls once outside the application.
+    affected_assets: [threat_model_data]
+    affected_components: [react_application, file_system]
+    affected_data_flows: [react_application->file_system]
+
+  - ref: clickjacking
+    name: Clickjacking
+    description: |
+      Attacker embeds FlowState TM in a malicious iframe with invisible overlays to trick 
+      users into performing unintended actions (deleting threats, modifying controls, exporting 
+      sensitive data). Lack of frame-busting or X-Frame-Options headers enables this attack.
+    affected_components: [react_application, web_browser]
+    affected_assets: [threat_model_data, user_session_state]
+
+  - ref: mitm_cdn_compromise
+    name: Man-in-the-Middle CDN Compromise
+    description: |
+      Attacker performs MITM attack between user and CDN to serve compromised application 
+      code. Without HTTPS or Subresource Integrity (SRI), users unknowingly run malicious 
+      code that steals threat models, injects backdoors, or exfiltrates sensitive data.
+    affected_components: [cdn_hosting, web_browser]
+    affected_data_flows: [cdn_hosting->react_application]
+    affected_assets: [application_code, threat_model_data]
+
+  - ref: react_flow_vulnerabilities
+    name: React Flow Library Vulnerabilities
+    description: |
+      React Flow library (used for diagram rendering) contains vulnerabilities in node/edge 
+      rendering, event handling, or SVG generation. Specially crafted threat model data could 
+      exploit these to achieve XSS, DoS, or memory exhaustion in the canvas editor.
+    affected_components: [canvas_editor, npm_dependencies]
+    affected_assets: [user_session_state, threat_model_data]
+
+  - ref: schema_bypass
+    name: Schema Validation Bypass
+    description: |
+      Attacker crafts YAML that passes schema validation but contains malicious payloads in 
+      unexpected fields or structures. Incomplete validation allows injection of extra properties 
+      that get processed unsafely, leading to code execution or data corruption.
+    affected_components: [yaml_parser]
+    affected_assets: [threat_model_data]
+
+  - ref: browser_extension_interference
+    name: Browser Extension Interference
+    description: |
+      Malicious or compromised browser extensions read, modify, or exfiltrate threat model 
+      data from the DOM or localStorage. Extensions have broad access to page content and 
+      storage, making them a significant threat vector for data theft or tampering.
+    affected_components: [web_browser, browser_storage]
+    affected_assets: [threat_model_data, user_session_state]
+
+  - ref: insufficient_error_handling
+    name: Insufficient Error Handling
+    description: |
+      Application exposes sensitive information in error messages (file paths, stack traces, 
+      internal state). Improper error handling during YAML parsing or diagram rendering could 
+      crash the app or leave it in an inconsistent state, causing data corruption or loss.
+    affected_components: [react_application, yaml_parser, canvas_editor]
+    affected_assets: [user_session_state, threat_model_data]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: input_sanitization
+    name: Input Sanitization
+    description: Sanitize all user input and threat model content before rendering. Use React's built-in XSS protection and avoid dangerouslySetInnerHTML. Escape special characters in user-provided strings.
+    status: Done
+    mitigates: [xss_injection]
+    implemented_in: [react_application, canvas_editor, table_editors]
+
+  - ref: yaml_schema_validation
+    name: YAML Schema Validation
+    description: Validate all loaded YAML files against threat_model.schema.json. Reject files that don't conform to the expected structure. Use safe YAML parsing (js-yaml's safeLoad).
+    status: Done
+    status_note: Schema validation enforced on all file loads using Ajv. Schema updated to support underscores in ref identifiers.
+    mitigates: [malicious_yaml_file, schema_bypass, prototype_pollution]
+    implemented_in: [yaml_parser]
+
+  - ref: yaml_parsing_limits
+    name: YAML Parsing Limits
+    description: Configure js-yaml with limits on depth, size, and aliases to prevent YAML bombs and billion laughs attacks. Implement timeout for parsing operations.
+    status: Done
+    status_note: Configured with maxAliasCount=100, CORE_SCHEMA (no custom types), and JSON mode. Protects against YAML bombs and billion laughs attacks.
+    mitigates: [malicious_yaml_file]
+    implemented_in: [yaml_parser]
+
+  - ref: sri_for_cdn_resources
+    name: Subresource Integrity (SRI)
+    description: Use SRI hashes for all CDN-loaded resources to detect tampering. Ensure index.html includes integrity attributes for all external scripts and stylesheets.
+    status: Done
+    status_note: Not applicable - all resources are bundled and served from same origin, no external CDN dependencies
+    mitigates: [template_tampering, mitm_cdn_compromise]
+    implemented_in: [cdn_hosting]
+
+  - ref: https_only
+    name: HTTPS Only
+    description: Serve application exclusively over HTTPS with HSTS header to prevent downgrade attacks. Configure CDN to redirect HTTP to HTTPS.
+    status: Done
+    status_note: GitHub Pages enforces HTTPS automatically and sets HSTS header (max-age=31536000; includeSubDomains; preload)
+    mitigates: [mitm_cdn_compromise]
+    implemented_in: [cdn_hosting]
+
+  - ref: csp_headers
+    name: Content Security Policy (CSP)
+    description: Implement strict CSP headers to prevent inline script execution and restrict script sources to trusted CDNs. Include script-src, style-src, and frame-ancestors directives.
+    status: Done
+    status_note: Implemented via CSP meta tag with script-src 'self' 'unsafe-eval'. Uses unsafe-eval for Ajv schema compilation (safe - all code bundled, no user input executed, blocks external/inline scripts). Frame-ancestors requires HTTP headers not supported by GitHub Pages.
+    mitigates: [xss_injection, clickjacking]
+    implemented_in: [cdn_hosting, react_application]
+
+  - ref: dependency_scanning
+    name: Dependency Vulnerability Scanning
+    description: Use npm audit, Dependabot, or Snyk to scan for known vulnerabilities in dependencies. Automate security updates and review dependency changes in CI/CD pipeline.
+    status: Done
+    status_note: GitHub Dependabot enabled for automatic dependency updates and vulnerability alerts.
+    mitigates: [dependency_vulnerabilities, react_flow_vulnerabilities]
+    implemented_in: [npm_dependencies]
+
+  - ref: auto_save
+    name: Auto-save Functionality
+    description: Implement auto-save to localStorage at regular intervals to minimize data loss. Provide resume functionality to recover work after browser crashes or refreshes.
+    status: Done
+    mitigates: [data_loss_browser_clearing]
+    implemented_in: [react_application, browser_storage]
+
+  - ref: explicit_save_prompts
+    name: Explicit Save Prompts
+    description: Prompt users to save unsaved changes before closing, refreshing, or loading new files. Detect before unload events and warn about data loss.
+    status: Done
+    mitigates: [data_loss_browser_clearing]
+    implemented_in: [react_application]
+    status_note: loading new files triggers a modal, other scenarios are covered by autosave.
+
+  - ref: export_warnings
+    name: Export Sensitivity Warnings
+    description: Display warnings when exporting diagrams reminding users about potential sensitivity of architecture diagrams. Consider adding optional watermarks or classification labels to exports.
+    status: To Do
+    mitigates: [diagram_export_information_disclosure]
+
+  - ref: frame_busting
+    name: Frame-Busting Headers
+    description: Set X-Frame-Options or CSP frame-ancestors directive to prevent application from being embedded in iframes on untrusted domains.
+    status: Cancelled
+    status_note: GitHub Pages does not support X-Frame-Options HTTP header. Requires Cloudflare proxy or migration to Netlify/Cloudflare Pages.
+    mitigates: [clickjacking]
+    implemented_in: [cdn_hosting]
+
+  - ref: safe_object_merging
+    name: Safe Object Merging
+    description: Avoid unsafe object merging patterns when processing YAML. Use Object.create(null) for objects that store user data. Sanitize property names before assignment.
+    status: To Do
+    mitigates: [prototype_pollution, schema_bypass]
+    implemented_in: [yaml_parser, react_application]
+
+  - ref: error_handling
+    name: Graceful Error Handling
+    description: Implement comprehensive error handling with user-friendly messages. Avoid exposing stack traces or internal details. Log errors for debugging without displaying sensitive information to users.
+    status: Done
+    mitigates: [insufficient_error_handling]
+    implemented_in: [react_application, yaml_parser, canvas_editor]
+
+  - ref: local_storage_encryption
+    name: Local Storage Encryption
+    description: Consider encrypting sensitive threat model data before storing in localStorage. Use Web Crypto API for client-side encryption with user-derived keys.
+    status: To Do
+    mitigates: [local_storage_exposure, browser_extension_interference]
+    implemented_in: [browser_storage, react_application]
+
+  - ref: security_documentation
+    name: Security Documentation
+    description: Provide security documentation for users about secure usage, data sensitivity, and browser security best practices. Document threat model storage recommendations.
+    status: To Do
+    mitigates: [local_storage_exposure, diagram_export_information_disclosure, browser_extension_interference]
+    implemented_in: [react_application]
+
+  - ref: template_signing
+    name: Template Integrity Verification
+    description: Consider implementing cryptographic signatures for templates to verify they haven't been tampered with. Validate signatures before loading templates.
+    status: To Do
+    mitigates: [template_tampering]
+
+  - ref: react_flow_updates
+    name: React Flow Version Updates
+    description: Keep React Flow library updated to latest stable version. Monitor security advisories for React Flow and related rendering libraries.
+    status: Done
+    mitigates: [react_flow_vulnerabilities]
+    implemented_in: [npm_dependencies]

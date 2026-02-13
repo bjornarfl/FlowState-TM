@@ -1,0 +1,327 @@
+schema_version: '1.0'
+name: Version Control and CICD
+description: |
+  Push/pull/merge/rebase/copy between developer machine and repository
+  Build application and deploy to target environment
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: source_code
+    name: Source Code
+    description: Text listing of commands, the information used to compile/assemble into an executable/application/script
+  
+  - ref: env_secrets
+    name: Environment Variables and Secrets
+    description: Pieces of information needed to access and use the correct target environments.
+  
+  - ref: runners
+    name: Runners
+    description: The containers and machines used to run all automation, including scan, build, and deploy.
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components:
+  - ref: repository
+    name: Repository
+    component_type: internal
+    x: -48
+    y: 0
+    description: |
+      Fundamental component of GitHub that serves as a central location to store and
+      manage all the files and revision history associated with a specific project.
+      Functions like a project folder, but with added capabilities of version control and collaboration from Git.
+    assets: [source_code]
+
+  - ref: github_actions
+    name: GitHub Actions
+    component_type: internal
+    x: -47
+    y: 111
+    description: |
+      Orchestration platform used to run CI/CD to automate build, test, scan, and deploy pipelines. 
+      Pipelines are defined through workflows stored in the repository as YAML files. 
+      Workflows are triggered by specific events such as a code push, a pull request being opened, or a scheduled time.
+    assets: [source_code, env_secrets, runners]
+
+  - ref: secrets_store
+    name: Secrets & Environment Variables
+    component_type: data_store
+    x: -50
+    y: 207
+    description: |
+      Secrets & environment variables are defined as part of the settings of a repository. 
+      Secrets, after being added, are only readable to the workflows run in GitHub Actions.
+    assets: [env_secrets]
+
+  - ref: developer
+    name: Developer
+    component_type: external_dependency
+    x: -324
+    y: 0
+    description: The user that is interacting with CI/CD and version control systems
+    assets: [source_code]
+
+  - ref: entra_id
+    name: Entra ID
+    component_type: external_dependency
+    x: -182
+    y: -108
+    description: Central identity and Access Management solution
+
+  - ref: reusable_workflows
+    name: Reusable Workflows
+    component_type: external_dependency
+    x: 154
+    y: 15
+    description: |
+      Reusable pipeline jobs created and maintained by someone else. 
+      Either standard workflows from Microsoft/Github (like “Checkout”), 
+      workflows from a different repository, or workflows created by third parties
+
+  - ref: target_environment
+    name: Target Environment
+    component_type: external_dependency
+    x: 161
+    y: 154
+    description: |
+      The resource to which the application is being built to and run from. 
+      Could for example be a cloud subscription or an on-prem server.
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: developer->repository
+    source: developer
+    destination: repository
+    source_point: right-3
+    destination_point: left-3
+    direction: unidirectional
+    label: Push/Merge
+
+  - ref: repository->developer
+    source: repository
+    destination: developer
+    source_point: left-1
+    destination_point: right-1
+    direction: unidirectional
+    label: Fetch Origin
+
+  - ref: developer->entra_id
+    source: developer
+    destination: entra_id
+    source_point: top-2
+    destination_point: left-2
+    direction: unidirectional
+    label: oAuth
+
+  - ref: entra_id->repository
+    source: entra_id
+    destination: repository
+    source_point: right-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Grant Access
+
+  - ref: github_actions->target_environment
+    source: github_actions
+    destination: target_environment
+    source_point: right-2
+    destination_point: left-2
+    direction: unidirectional
+    label: Deploy
+
+  - ref: target_environment->secrets_store
+    source: target_environment
+    destination: secrets_store
+    source_point: bottom-2
+    destination_point: right-2
+    direction: unidirectional
+
+  - ref: developer->secrets_store
+    source: developer
+    destination: secrets_store
+    source_point: bottom-2
+    destination_point: left-2
+    direction: unidirectional
+
+  - ref: repository->github_actions
+    source: repository
+    destination: github_actions
+    source_point: bottom-1
+    destination_point: top-1
+    direction: unidirectional
+    label: Initiate
+
+  - ref: github_actions->repository
+    source: github_actions
+    destination: repository
+    source_point: top-3
+    destination_point: bottom-3
+    direction: unidirectional
+    label: Results
+
+  - ref: secrets_store->github_actions
+    source: secrets_store
+    destination: github_actions
+    source_point: top-2
+    destination_point: bottom-2
+    direction: unidirectional
+    label: Fetch
+
+  - ref: reusable_workflows->github_actions
+    source: reusable_workflows
+    destination: github_actions
+    source_point: bottom-1
+    destination_point: right-1
+    direction: unidirectional
+    label: Fetch
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: github_org_boundary
+    name: GitHub Org
+    x: -70
+    y: -27
+    width: 194
+    height: 339
+    components: [repository, github_actions, secrets_store]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: compromised_developer_identity
+    name: Compromised developer identity
+    description: An attacker gains access to a developer’s credentials and pushes malicious code.
+    affected_data_flows: [developer->repository]
+    affected_components: [developer, repository]
+    affected_assets: [source_code]
+
+  - ref: insider_threats
+    name: Insider Threats
+    description: |
+      An insider (developer, admin, or contractor) intentionally or unintentionally
+      introduces malicious code, bypasses security controls, or leaks sensitive information. 
+      This can occur through direct commits, misconfigured access controls, or abuse of privileged accounts.
+    affected_components: [repository, developer]
+    affected_data_flows: [developer->repository]
+    affected_assets: [source_code, env_secrets]
+
+  - ref: pats_used_in_workflows
+    name: PATs used in workflows
+    description: |
+      PATs (personal access tokens) are, as the name implies, personal. 
+      If used in a workflow, the workflow can be triggered by someone else, and changes to the repository 
+      will be logged as if the changes were performed by the creator of the PAT. 
+      This can lead to non-repudiation issues if the workflow proves to be malicious.
+    affected_components: [github_actions, developer]
+    affected_data_flows: [developer->repository, repository->github_actions]
+
+  - ref: secrets_poisoning
+    name: Secrets Poisoning
+    description: |
+      Environment variables or secrets are replaced with attacker-controlled values.
+      Injected values can allow the attacker to redirect traffic, exfiltrate data, or compromise downstream systems.
+    affected_components: [secrets_store, developer]
+    affected_data_flows: [developer->secrets_store]
+    affected_assets: [env_secrets]
+
+  - ref: secrets_leakage_in_source_code
+    name: Secrets leakage in source code
+    description: Secrets are exposed because they were written directly to source code instead of stored in the secrets storage.
+    affected_components: [repository, developer]
+    affected_data_flows: [repository->developer]
+    affected_assets: [source_code, env_secrets]
+
+  - ref: resource_exhaustion_of_runners
+    name: Resource Exhaustion of Runners
+    description: |
+      Both malicious and unintentional changes to workflows can cause excessive build triggers, or long and resource intensive builds. 
+      This again can incur high compute costs, or unavailability of runners.
+    affected_data_flows: [repository->github_actions]
+    affected_components: [repository, github_actions]
+    affected_assets: [runners]
+
+  - ref: pipeline_tampering
+    name: Pipeline Tampering
+    description: |
+      YAML files are altered to skip security checks or deploy malicious artifacts.
+    affected_components: [repository, target_environment]
+    affected_data_flows: [repository->github_actions, github_actions->target_environment]
+    affected_assets: [runners]
+
+  - ref: vulnerabilities_in_code
+    name: Vulnerabilities in Code
+    description: |
+      Code published to target environment contains vulnerabilities that can be
+      exploited by an attacker.
+    affected_data_flows: [repository->github_actions, github_actions->target_environment]
+    affected_components: [repository]
+    affected_assets: [source_code]
+
+  - ref: vulnerabilities_in_dependencies
+    name: Vulnerabilities in dependencies
+    description: |
+      Third-party libraries or frameworks used in the application contains
+      vulnerabilities that can be exploited by an attacker.
+    affected_components: [repository]
+    affected_data_flows: [repository->github_actions, github_actions->target_environment]
+
+  - ref: third_party_workflow_info_exposure
+    name: Third-party workflow information exposure
+    description: |
+      Reusable workflows from external sources leaks internal or sensitive data,
+      such as source code or secrets.
+    affected_data_flows: [reusable_workflows->github_actions]
+    affected_components: [github_actions, reusable_workflows]
+    affected_assets: [runners, source_code, env_secrets]
+
+  - ref: dependency_hijacking
+    name: Dependency Hijacking
+    description: Workflow depends on external actions or packages that get compromised or replaced
+    affected_data_flows: [reusable_workflows->github_actions]
+    affected_components: [reusable_workflows, github_actions]
+    affected_assets: [runners]
+
+  - ref: secrets_leakage_in_logs
+    name: Secrets leakage in logs
+    description: |
+      Sensitive environment variables are exposed in build logs, 
+      either because they were stored as environment variables instead of secrets, 
+      or because permutations of the secret during workflow run causes the secret masking of GitHub Actions to fail.
+    affected_data_flows: [secrets_store->github_actions]
+    affected_components: [secrets_store, github_actions]
+    affected_assets: [env_secrets]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: branch_protection
+    name: Branch protection
+    description: |
+      - Disable direct commits into main/default branch.
+      - Require manual review of pull requests to main/default branch. 
+      - Restrict users from approving their own pull requests
+    mitigates: [compromised_developer_identity, insider_threats, pats_used_in_workflows, secrets_poisoning, secrets_leakage_in_source_code, resource_exhaustion_of_runners, pipeline_tampering, vulnerabilities_in_code, vulnerabilities_in_dependencies, secrets_leakage_in_logs]
+    implemented_in: [repository]
+
+  - ref: secret_scanning
+    name: Secret Scanning
+    description: Enable secret scanning on repository code
+    mitigates: [secrets_leakage_in_source_code, secrets_leakage_in_logs]
+    implemented_in: [repository]
+
+  - ref: sca
+    name: SCA
+    description: |
+      Implement Software Composition Analysis (SCA) in pipelines using Dependabot.
+      Create SBOMs for every release using Dependabot.
+    mitigates: [vulnerabilities_in_dependencies, dependency_hijacking]
+    implemented_in: [repository, github_actions]
+
+  - ref: sast
+    name: SAST
+    description: Implement Static Analysis Security Testing in pipelines.
+    mitigates: [vulnerabilities_in_code]
+    implemented_in: [repository, github_actions]
+    
+  - ref: workflow_pinning
+    name: Workflow Pinning
+    description: Pin references to external reusable workflows using SHA’s of specific commits
+    mitigates: [dependency_hijacking, third_party_workflow_info_exposure, pipeline_tampering]
+    implemented_in: [repository]

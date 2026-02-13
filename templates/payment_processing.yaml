@@ -1,0 +1,415 @@
+schema_version: '1.0'
+name: Payment Processing Flow
+description: Threat model for online payment processing including card data handling, payment gateway integration, and transaction completion.
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: payment_card_data
+    name: Payment Card Data
+    description: Credit/debit card numbers, CVV, expiration dates, and cardholder information (PCI DSS scope).
+  
+  - ref: transaction_data
+    name: Transaction Data
+    description: Order details, amounts, currency, merchant information, and transaction status.
+  
+  - ref: user_identity
+    name: User Identity
+    description: Customer account information linked to payment methods and transaction history.
+  
+  - ref: payment_tokens
+    name: Payment Tokens
+    description: Tokenized payment credentials and session identifiers used for secure processing.
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components:
+  - ref: customer
+    name: Customer
+    component_type: external_dependency
+    x: -609
+    y: 15
+    description: User making a purchase and providing payment information
+
+  - ref: web_application
+    name: Web Application
+    component_type: internal
+    x: -338
+    y: 12
+    description: Frontend application collecting order and payment details
+    assets: [transaction_data]
+
+  - ref: payment_form
+    name: Payment Form
+    component_type: internal
+    x: -337
+    y: -64
+    description: Hosted payment form or iframe for collecting card data (PCI DSS scope reduction)
+    assets: [payment_card_data]
+
+  - ref: application_backend
+    name: Application Backend
+    component_type: internal
+    x: -92
+    y: 1
+    description: Server handling order processing and payment orchestration
+    assets: [transaction_data, user_identity, payment_tokens]
+
+  - ref: payment_gateway
+    name: Payment Gateway
+    component_type: external_dependency
+    x: -341
+    y: -247
+    description: Third-party payment processor (Stripe, PayPal, Adyen) handling card data
+    assets: [payment_card_data, payment_tokens, transaction_data]
+
+  - ref: fraud_detection
+    name: Fraud Detection Service
+    component_type: external_dependency
+    x: 198
+    y: -1
+    description: Service analyzing transactions for fraud patterns and risk scoring
+    assets: [transaction_data, user_identity]
+
+  - ref: database
+    name: Database
+    component_type: data_store
+    x: -90
+    y: 140
+    description: Store for order records and tokenized payment methods (NO raw card data)
+    assets: [transaction_data, user_identity, payment_tokens]
+
+  - ref: notification_service
+    name: Notification Service
+    component_type: internal
+    x: -340
+    y: 116
+    description: Service sending payment confirmations and receipts to customers
+    assets: [transaction_data, user_identity]
+
+  - ref: webhook_handler
+    name: Webhook Handler
+    component_type: internal
+    x: -93
+    y: -135
+    description: Endpoint receiving payment status updates from payment gateway
+    assets: [transaction_data, payment_tokens]
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: customer->web_application
+    source: customer
+    destination: web_application
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Browse/Order
+
+  - ref: customer->payment_form
+    source: customer
+    destination: payment_form
+    source_point: top-2
+    destination_point: left-2
+    direction: unidirectional
+    label: Enter Card Data
+
+  - ref: payment_form->payment_gateway
+    source: payment_form
+    destination: payment_gateway
+    source_point: top-2
+    destination_point: bottom-2
+    direction: unidirectional
+    label: Submit Payment
+
+  - ref: web_application->application_backend
+    source: web_application
+    destination: application_backend
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Create Order
+
+  - ref: application_backend<->payment_gateway
+    source: application_backend
+    destination: payment_gateway
+    source_point: top-1
+    destination_point: bottom-3
+    direction: bidirectional
+    label: Process Transaction
+
+  - ref: application_backend<->fraud_detection
+    source: application_backend
+    destination: fraud_detection
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Risk Assessment
+
+  - ref: application_backend<->database
+    source: application_backend
+    destination: database
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+    label: Store Order
+
+  - ref: payment_gateway->webhook_handler
+    source: payment_gateway
+    destination: webhook_handler
+    source_point: right-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Status Update
+
+  - ref: webhook_handler->application_backend
+    source: webhook_handler
+    destination: application_backend
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Update Status
+
+  - ref: application_backend->notification_service
+    source: application_backend
+    destination: notification_service
+    source_point: bottom-1
+    destination_point: right-2
+    direction: unidirectional
+    label: Send Receipt
+
+  - ref: notification_service->customer
+    source: notification_service
+    destination: customer
+    source_point: left-2
+    destination_point: bottom-2
+    direction: unidirectional
+    label: Email Receipt
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: pci_scope
+    name: PCI DSS Scope
+    x: -359
+    y: -88
+    width: 170
+    height: 78
+    components: [payment_form]
+
+  - ref: merchant_infrastructure
+    name: Merchant Infrastructure
+    x: -374
+    y: -165
+    width: 450
+    height: 372
+    components: [web_application, payment_form, application_backend, database, notification_service, webhook_handler]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: card_data_interception
+    name: Card Data Interception
+    description: |
+      Attacker intercepts payment card data during transmission between customer and payment 
+      gateway through man-in-the-middle attacks, compromised networks, or insecure connections. 
+      This exposes card numbers, CVV, and expiration dates.
+    affected_components: [payment_form, payment_gateway]
+    affected_data_flows: [customer->payment_form, payment_form->payment_gateway]
+    affected_assets: [payment_card_data]
+
+  - ref: payment_form_tampering
+    name: Payment Form Tampering
+    description: |
+      Attacker injects malicious JavaScript into the payment form through XSS or compromised 
+      third-party scripts to steal card data before it reaches the payment gateway. Often 
+      called "formjacking" or "Magecart" attacks.
+    affected_components: [payment_form, web_application]
+    affected_assets: [payment_card_data]
+
+  - ref: amount_manipulation
+    name: Amount Manipulation
+    description: |
+      Attacker modifies transaction amounts, currency, or order details during processing to 
+      pay less than intended or manipulate pricing. This can occur through parameter tampering, 
+      race conditions, or API abuse.
+    affected_components: [web_application, application_backend]
+    affected_data_flows: [web_application->application_backend]
+    affected_assets: [transaction_data]
+
+  - ref: webhook_spoofing
+    name: Webhook Spoofing
+    description: |
+      Attacker sends fake webhook notifications pretending to be from the payment gateway to 
+      mark fraudulent transactions as successful. Lack of webhook signature verification or 
+      IP filtering enables this attack.
+    affected_components: [webhook_handler, payment_gateway]
+    affected_data_flows: [payment_gateway->webhook_handler]
+    affected_assets: [transaction_data]
+
+  - ref: stored_card_data
+    name: Stored Card Data
+    description: |
+      Application improperly stores raw payment card data in logs, databases, or temporary 
+      files, violating PCI DSS. Data breach exposes this stored card data to attackers.
+    affected_components: [application_backend, database]
+    affected_assets: [payment_card_data]
+
+  - ref: payment_replay
+    name: Payment Replay Attack
+    description: |
+      Attacker captures and replays valid payment requests to charge customers multiple times 
+      or perform unauthorized transactions. Lack of idempotency keys or transaction uniqueness 
+      checks enables this.
+    affected_components: [application_backend, payment_gateway]
+    affected_data_flows: [application_backend<->payment_gateway]
+    affected_assets: [transaction_data, payment_tokens]
+
+  - ref: card_testing
+    name: Card Testing
+    description: |
+      Attackers use the payment form to test stolen card numbers by making small purchases to 
+      verify which cards are valid. Lack of rate limiting or CAPTCHA enables automated testing 
+      of card databases.
+    affected_components: [payment_form, application_backend]
+    affected_assets: [payment_card_data]
+
+  - ref: refund_fraud
+    name: Refund Fraud
+    description: |
+      Attacker exploits refund processes to receive refunds to different payment methods, 
+      claim refunds for items not returned, or manipulate refund amounts through API abuse 
+      or insufficient authorization checks.
+    affected_components: [application_backend, payment_gateway]
+    affected_assets: [transaction_data]
+
+  - ref: session_hijacking
+    name: Session Hijacking During Payment
+    description: |
+      Attacker steals customer session during payment process to complete transaction under 
+      victim's account, change delivery address, or access stored payment methods.
+    affected_components: [web_application, application_backend]
+    affected_assets: [user_identity, payment_tokens]
+
+  - ref: fraud_bypass
+    name: Fraud Detection Bypass
+    description: |
+      Attacker uses techniques like VPN, stolen identities, or small transaction amounts to 
+      evade fraud detection systems. Fraudulent transactions slip through and result in 
+      chargebacks.
+    affected_components: [fraud_detection, application_backend]
+    affected_data_flows: [application_backend<->fraud_detection]
+    affected_assets: [transaction_data]
+
+  - ref: payment_gateway_downtime_abuse
+    name: Payment Gateway Downtime Abuse
+    description: |
+      During payment gateway outages or timeouts, application may fail open and grant access 
+      to goods/services without confirmed payment. Poor error handling leads to financial loss.
+    affected_components: [application_backend, payment_gateway]
+    affected_assets: [transaction_data]
+
+  - ref: pci_scope_creep
+    name: PCI Scope Creep
+    description: |
+      Application code or infrastructure unnecessarily handles or logs payment card data, 
+      expanding PCI DSS compliance scope. This increases audit requirements and risk exposure 
+      without business need.
+    affected_components: [application_backend, web_application, database]
+    affected_assets: [payment_card_data]
+
+  - ref: insufficient_logging
+    name: Insufficient Transaction Logging
+    description: |
+      Lack of comprehensive logging for payment transactions makes it difficult to detect 
+      fraud, investigate disputes, or perform forensics after security incidents. Cannot 
+      reconstruct transaction timeline.
+    affected_components: [application_backend, webhook_handler]
+    affected_assets: [transaction_data]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: hosted_payment_page
+    name: Hosted Payment Page
+    description: Use payment gateway's hosted payment page or iframe to avoid handling raw card data. This removes card data from PCI scope entirely.
+    mitigates: [card_data_interception, payment_form_tampering, stored_card_data, pci_scope_creep]
+    implemented_in: [payment_form, payment_gateway]
+
+  - ref: tls_encryption
+    name: TLS Encryption
+    description: Enforce TLS 1.3 for all payment-related communication. Use HSTS and certificate pinning where possible.
+    mitigates: [card_data_interception, session_hijacking]
+    implemented_in: [payment_form, web_application, application_backend]
+
+  - ref: csp_sri
+    name: Content Security Policy and SRI
+    description: Implement strict CSP to prevent script injection. Use Subresource Integrity (SRI) for all third-party scripts to detect tampering.
+    mitigates: [payment_form_tampering]
+    implemented_in: [web_application, payment_form]
+
+  - ref: server_side_validation
+    name: Server-Side Validation
+    description: Validate all transaction amounts, currency, and order details on the server. Never trust client-side data for pricing or totals.
+    mitigates: [amount_manipulation]
+    implemented_in: [application_backend]
+
+  - ref: webhook_signature_verification
+    name: Webhook Signature Verification
+    description: Verify cryptographic signatures on all webhook requests from payment gateway. Reject requests without valid signatures.
+    mitigates: [webhook_spoofing]
+    implemented_in: [webhook_handler]
+
+  - ref: no_card_storage
+    name: No Card Data Storage
+    description: Never store raw card numbers, CVV, or magnetic stripe data. Use payment gateway tokens for recurring payments. Log and alert if card data appears in logs.
+    mitigates: [stored_card_data, pci_scope_creep]
+    implemented_in: [application_backend, database]
+
+  - ref: idempotency_keys
+    name: Idempotency Keys
+    description: Use unique idempotency keys for each payment request to prevent duplicate charges. Check for duplicate transactions before processing.
+    mitigates: [payment_replay]
+    implemented_in: [application_backend, payment_gateway]
+
+  - ref: rate_limiting_captcha
+    name: Rate Limiting and CAPTCHA
+    description: Implement rate limiting on payment attempts per card/IP/session. Use CAPTCHA after multiple failed attempts to prevent automated card testing.
+    mitigates: [card_testing, fraud_bypass]
+    implemented_in: [payment_form, application_backend]
+
+  - ref: refund_authorization
+    name: Refund Authorization Controls
+    description: Require manager approval for refunds above threshold. Validate refund destination matches original payment method. Log all refund activities.
+    mitigates: [refund_fraud]
+    implemented_in: [application_backend]
+
+  - ref: secure_session_management
+    name: Secure Session Management
+    description: Use secure session tokens with short expiration during payment. Require re-authentication for saved payment methods. Bind sessions to IP and user agent.
+    mitigates: [session_hijacking]
+    implemented_in: [web_application, application_backend]
+
+  - ref: fraud_detection_integration
+    name: Fraud Detection Integration
+    description: Integrate with fraud detection service (Stripe Radar, Kount). Block or flag high-risk transactions for manual review. Monitor velocity and behavior patterns.
+    mitigates: [fraud_bypass, card_testing, refund_fraud]
+    implemented_in: [application_backend, fraud_detection]
+
+  - ref: graceful_failure_handling
+    name: Graceful Failure Handling
+    description: Implement proper timeout and error handling for payment gateway calls. Never grant access without confirmed payment success. Use pessimistic locking.
+    mitigates: [payment_gateway_downtime_abuse]
+    implemented_in: [application_backend]
+
+  - ref: tokenization
+    name: Payment Tokenization
+    description: Use payment gateway tokenization for storing customer payment methods. Tokens are not sensitive and reduce PCI scope.
+    mitigates: [stored_card_data, pci_scope_creep, card_data_interception]
+    implemented_in: [payment_gateway, application_backend]
+
+  - ref: comprehensive_logging
+    name: Comprehensive Transaction Logging
+    description: Log all payment events with timestamps, amounts, status, and user IDs. Exclude sensitive card data. Retain logs for audit and fraud investigation.
+    mitigates: [insufficient_logging, refund_fraud, fraud_bypass]
+    implemented_in: [application_backend, webhook_handler]
+
+  - ref: pci_compliance
+    name: PCI DSS Compliance
+    description: Maintain PCI DSS compliance through regular scans, penetration tests, and policy adherence. Use payment gateway features to minimize scope.
+    mitigates: [stored_card_data, pci_scope_creep, card_data_interception]
+    implemented_in: [payment_form, application_backend]

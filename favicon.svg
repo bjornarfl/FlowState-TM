@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  
+  <!-- Shield background -->
+  <path d="M 50 10 C 48 10 46 10.5 45 11 L 20 22 C 18 23 18 24 18 26 L 18 42 Q 18 65 46 83 C 48 84.5 52 84.5 54 83 Q 82 65 82 42 L 82 26 C 82 24 82 23 80 22 L 55 11 C 54 10.5 52 10 50 10 Z" 
+        fill="#6b7280" 
+        stroke="#4b5563" 
+        stroke-width="1.5"/>
+  
+  <!-- Top left circle (changed from square) -->
+  <circle cx="38" cy="33" r="8" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="3"/>
+  
+  <!-- Top right square (different color) -->
+  <rect x="54" y="25" width="16" height="16" rx="3" 
+        fill="none" 
+        stroke="#dc2626" 
+        stroke-width="3"/>
+  
+  <!-- Bottom left parallel lines (changed from square) -->
+  <line x1="30" y1="51" x2="46" y2="51" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  <line x1="30" y1="63" x2="46" y2="63" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Bottom right (circle instead of square) -->
+  <circle cx="62" cy="57" r="8" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="3"/>
+  
+  <!-- Connection dot outlines (gaps in shapes) -->
+  <circle cx="46" cy="33" r="3.5" fill="#6b7280"/>
+  <circle cx="54" cy="33" r="3.5" fill="#6b7280"/>
+  <circle cx="62" cy="41" r="3.5" fill="#6b7280"/>
+  <circle cx="38" cy="41" r="3.5" fill="#6b7280"/>
+  <circle cx="38" cy="51" r="3.5" fill="#6b7280"/>
+  <circle cx="62" cy="49" r="3.5" fill="#6b7280"/>
+  
+  <!-- Connection lines -->
+  <!-- Top left to top right -->
+  <line x1="46" y1="33" x2="54" y2="33" stroke="#ffffff" stroke-width="2"/>
+  
+  <!-- Top right to bottom right -->
+  <line x1="62" y1="41" x2="62" y2="49" stroke="#ffffff" stroke-width="2"/>
+  
+  <!-- Top left to bottom left -->
+  <line x1="38" y1="41" x2="38" y2="51" stroke="#ffffff" stroke-width="2"/>
+  
+  <!-- Connection dots -->
+  <!-- Right edge of top left circle -->
+  <circle cx="46" cy="33" r="2.5" fill="#ffffff"/>
+  
+  <!-- Left edge of top right square -->
+  <circle cx="54" cy="33" r="2.5" fill="#dc2626"/>
+  
+  <!-- Bottom edge of top right square -->
+  <circle cx="62" cy="41" r="2.5" fill="#dc2626"/>
+  
+  <!-- Bottom edge of top left circle -->
+  <circle cx="38" cy="41" r="2.5" fill="#ffffff"/>
+  
+  <!-- Top edge of bottom left parallel lines -->
+  <circle cx="38" cy="51" r="2.5" fill="#ffffff"/>
+  
+  <!-- Top edge of bottom right circle -->
+  <circle cx="62" cy="49" r="2.5" fill="#ffffff"/>
+</svg>

@@ -1,0 +1,508 @@
+schema_version: '1.0'
+name: Containerized Microservices
+description: Container-based microservices architecture orchestrated by Kubernetes with service mesh, ingress, and persistent storage.
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: customer_data
+    name: Customer Data
+    description: Sensitive customer information including PII, transaction data, and account details processed by microservices.
+  
+  - ref: container_images
+    name: Container Images
+    description: Docker images containing application code, dependencies, and configurations that run in the cluster.
+  
+  - ref: cluster_secrets
+    name: Cluster Secrets
+    description: Sensitive credentials, API keys, certificates, and tokens stored in the orchestration platform.
+  
+  - ref: service_communications
+    name: Service Communications
+    description: Inter-service API calls, message payloads, and data exchanged between microservices.
+  
+  - ref: cluster_config
+    name: Cluster Configuration
+    description: Kubernetes manifests, RBAC policies, network policies, and infrastructure-as-code defining cluster state.
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components:
+  - ref: external_users
+    name: External Users
+    component_type: external_dependency
+    x: -517
+    y: 72
+    description: End users accessing the application through web or mobile clients
+
+  - ref: ingress_controller
+    name: Ingress Controller
+    component_type: internal
+    x: -280
+    y: 64
+    description: Entry point managing external access to services in the cluster, handling TLS termination and routing
+    assets: [service_communications, cluster_secrets]
+
+  - ref: api_gateway_service
+    name: API Gateway Service
+    component_type: internal
+    x: -21
+    y: 65
+    description: Containerized API gateway handling authentication, rate limiting, and request routing
+    assets: [customer_data, service_communications]
+
+  - ref: auth_service
+    name: Auth Service
+    component_type: internal
+    x: -204
+    y: -2
+    description: Authentication and authorization microservice managing user sessions and tokens
+    assets: [customer_data, cluster_secrets]
+
+  - ref: business_services
+    name: Business Logic Services
+    component_type: internal
+    x: 348
+    y: 65
+    description: Multiple microservices implementing core business functionality
+    assets: [customer_data, service_communications]
+
+  - ref: service_mesh
+    name: Service Mesh
+    component_type: internal
+    x: 125
+    y: -2
+    description: Infrastructure layer (Istio, Linkerd) providing service-to-service communication, observability, and security
+    assets: [service_communications, cluster_secrets]
+
+  - ref: database_pods
+    name: Database Pods
+    component_type: data_store
+    x: 345
+    y: -179
+    description: Containerized databases or stateful sets storing persistent application data
+    assets: [customer_data]
+
+  - ref: message_broker
+    name: Message Broker
+    component_type: internal
+    x: 177
+    y: -65
+    description: Containerized message queue (RabbitMQ, Kafka) for asynchronous communication
+    assets: [service_communications, customer_data]
+
+  - ref: container_registry
+    name: Container Registry
+    component_type: internal
+    x: -19
+    y: -184
+    description: Private registry storing and distributing container images for deployment
+    assets: [container_images, cluster_secrets]
+
+  - ref: secrets_manager
+    name: Secrets Manager
+    component_type: internal
+    x: -102
+    y: 221
+    description: Kubernetes secrets or external secrets manager (Vault) storing sensitive configuration
+    assets: [cluster_secrets]
+
+  - ref: cicd_pipeline
+    name: CI/CD Pipeline
+    component_type: external_dependency
+    x: -20
+    y: -294
+    description: Automated pipeline building, scanning, and deploying container images to the cluster
+    assets: [container_images, cluster_config]
+
+  - ref: persistent_storage
+    name: Persistent Storage
+    component_type: data_store
+    x: 344
+    y: -311
+    description: Persistent volumes providing storage for stateful workloads
+    assets: [customer_data]
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: external_users<->ingress_controller
+    source: external_users
+    destination: ingress_controller
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: HTTPS
+
+  - ref: ingress_controller<->api_gateway_service
+    source: ingress_controller
+    destination: api_gateway_service
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Route
+
+  - ref: api_gateway_service<->auth_service
+    source: api_gateway_service
+    destination: auth_service
+    source_point: left-1
+    destination_point: bottom-3
+    direction: bidirectional
+    label: Verify Token
+
+  - ref: api_gateway_service<->business_services
+    source: api_gateway_service
+    destination: business_services
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+    label: Forward Request
+
+  - ref: business_services<->database_pods
+    source: business_services
+    destination: database_pods
+    source_point: top-3
+    destination_point: bottom-3
+    direction: bidirectional
+    label: Query/Update
+
+  - ref: business_services<->message_broker
+    source: business_services
+    destination: message_broker
+    source_point: top-1
+    destination_point: right-2
+    direction: bidirectional
+    label: Pub/Sub
+
+  - ref: service_mesh<->business_services
+    source: service_mesh
+    destination: business_services
+    source_point: right-2
+    destination_point: left-1
+    direction: bidirectional
+    label: Sidecar Proxy
+
+  - ref: service_mesh<->api_gateway_service
+    source: service_mesh
+    destination: api_gateway_service
+    source_point: left-2
+    destination_point: top-2
+    direction: bidirectional
+    label: Sidecar Proxy
+
+  - ref: container_registry->business_services
+    source: container_registry
+    destination: business_services
+    source_point: right-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Pull Image
+
+  - ref: container_registry->api_gateway_service
+    source: container_registry
+    destination: api_gateway_service
+    source_point: bottom-1
+    destination_point: top-1
+    direction: unidirectional
+    label: Pull Image
+
+  - ref: container_registry->auth_service
+    source: container_registry
+    destination: auth_service
+    source_point: left-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Pull Image
+
+  - ref: container_registry->database_pods
+    source: container_registry
+    destination: database_pods
+    source_point: right-1
+    destination_point: left-1
+    direction: unidirectional
+    label: Pull Image
+
+  - ref: container_registry->message_broker
+    source: container_registry
+    destination: message_broker
+    source_point: right-3
+    destination_point: top-2
+    direction: unidirectional
+    label: Pull Image
+
+  - ref: container_registry->service_mesh
+    source: container_registry
+    destination: service_mesh
+    source_point: bottom-2
+    destination_point: top-1
+    direction: unidirectional
+    label: Pull Image
+
+  - ref: cicd_pipeline->container_registry
+    source: cicd_pipeline
+    destination: container_registry
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+    label: Push Image
+
+  - ref: secrets_manager->business_services
+    source: secrets_manager
+    destination: business_services
+    source_point: right-2
+    destination_point: bottom-2
+    direction: unidirectional
+    label: Inject Secrets
+
+  - ref: secrets_manager->auth_service
+    source: secrets_manager
+    destination: auth_service
+    source_point: top-1
+    destination_point: bottom-2
+    direction: unidirectional
+    label: Inject Secrets
+
+  - ref: secrets_manager->api_gateway_service
+    source: secrets_manager
+    destination: api_gateway_service
+    source_point: top-3
+    destination_point: bottom-1
+    direction: unidirectional
+    label: Inject Secrets
+
+  - ref: secrets_manager->ingress_controller
+    source: secrets_manager
+    destination: ingress_controller
+    source_point: left-2
+    destination_point: bottom-2
+    direction: unidirectional
+    label: TLS Certificates
+
+  - ref: database_pods<->persistent_storage
+    source: database_pods
+    destination: persistent_storage
+    source_point: top-2
+    destination_point: bottom-2
+    direction: bidirectional
+    label: Volume Mount
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: kubernetes_cluster
+    name: Kubernetes Cluster
+    x: -291
+    y: -202
+    width: 789
+    height: 504
+    components: [ingress_controller, api_gateway_service, auth_service, business_services, service_mesh, database_pods, message_broker, container_registry, secrets_manager]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: container_escape
+    name: Container Escape
+    description: |
+      An attacker exploits vulnerabilities in the container runtime or kernel to break out of 
+      container isolation and gain access to the host node. This could allow access to other 
+      containers, the Kubernetes control plane, or underlying infrastructure.
+    affected_components: [business_services, api_gateway_service, database_pods]
+    affected_assets: [customer_data, cluster_secrets]
+
+  - ref: vulnerable_container_images
+    name: Vulnerable Container Images
+    description: |
+      Container images contain outdated base images, vulnerable dependencies, or known CVEs. 
+      Attackers can exploit these vulnerabilities to compromise running containers, steal data, 
+      or establish persistence in the cluster.
+    affected_components: [container_registry, business_services, api_gateway_service]
+    affected_assets: [container_images, customer_data]
+
+  - ref: supply_chain_attack
+    name: Supply Chain Attack
+    description: |
+      Malicious code is injected into container images through compromised base images, 
+      dependencies, or build pipelines. This could result in backdoors, data exfiltration, 
+      or crypto-mining in production workloads.
+    affected_components: [cicd_pipeline, container_registry, business_services]
+    affected_data_flows: [cicd_pipeline->container_registry, container_registry->business_services]
+    affected_assets: [container_images]
+
+  - ref: privilege_escalation
+    name: Privilege Escalation
+    description: |
+      An attacker exploits overly permissive RBAC policies, service account tokens, or 
+      Kubernetes API access to escalate privileges from a compromised pod to cluster admin, 
+      allowing full control over the cluster.
+    affected_components: [business_services, api_gateway_service]
+    affected_assets: [cluster_config, cluster_secrets]
+
+  - ref: secrets_exposure
+    name: Secrets Exposure
+    description: |
+      Secrets are exposed through environment variables, container logs, mounted volumes, 
+      or accessible through the Kubernetes API. Insufficient encryption or overly permissive 
+      secret access allows attackers to steal credentials.
+    affected_components: [secrets_manager, business_services, auth_service]
+    affected_assets: [cluster_secrets, customer_data]
+
+  - ref: insecure_service_communication
+    name: Insecure Service Communication
+    description: |
+      Inter-service communication is not encrypted or authenticated, allowing man-in-the-middle 
+      attacks, eavesdropping, or service impersonation within the cluster network.
+    affected_components: [business_services, api_gateway_service, service_mesh]
+    affected_data_flows: [api_gateway_service<->business_services, business_services<->message_broker]
+    affected_assets: [service_communications, customer_data]
+
+  - ref: denial_of_service
+    name: Denial of Service
+    description: |
+      An attacker exhausts cluster resources by deploying resource-intensive workloads, 
+      causing pod evictions, or flooding services with requests. Lack of resource quotas 
+      and network policies enables resource starvation attacks.
+    affected_components: [ingress_controller, business_services, api_gateway_service]
+    affected_data_flows: [external_users<->ingress_controller]
+
+  - ref: insecure_ingress
+    name: Insecure Ingress Configuration
+    description: |
+      Misconfigured ingress controllers expose internal services, use weak TLS configurations, 
+      or lack proper authentication. This allows unauthorized external access to internal APIs 
+      and services.
+    affected_components: [ingress_controller]
+    affected_data_flows: [external_users<->ingress_controller, ingress_controller<->api_gateway_service]
+    affected_assets: [service_communications]
+
+  - ref: network_policy_bypass
+    name: Network Policy Bypass
+    description: |
+      Lack of or misconfigured network policies allows unrestricted pod-to-pod communication. 
+      A compromised container can laterally move to attack other services, databases, or 
+      sensitive workloads without restrictions.
+    affected_components: [business_services, database_pods, message_broker]
+    affected_assets: [customer_data, service_communications]
+
+  - ref: malicious_admission
+    name: Malicious Admission
+    description: |
+      Lack of admission control allows deployment of untrusted or malicious containers, 
+      privileged pods, or workloads with dangerous configurations. This bypasses security 
+      policies and introduces vulnerabilities.
+    affected_components: [business_services, api_gateway_service]
+    affected_assets: [container_images, cluster_config]
+
+  - ref: persistent_storage_exposure
+    name: Persistent Storage Exposure
+    description: |
+      Persistent volumes are accessed by unauthorized pods or lack encryption at rest. 
+      Misconfigured volume permissions or storage class settings expose sensitive data 
+      to other tenants or workloads.
+    affected_components: [persistent_storage, database_pods]
+    affected_assets: [customer_data]
+
+  - ref: logging_data_leakage
+    name: Logging Data Leakage
+    description: |
+      Sensitive data including credentials, tokens, or PII is logged by containers and 
+      collected by the logging stack. Overly permissive access to logs exposes this data 
+      to unauthorized users or attackers.
+    affected_components: [business_services, api_gateway_service]
+    affected_assets: [customer_data, cluster_secrets]
+
+  - ref: image_registry_compromise
+    name: Image Registry Compromise
+    description: |
+      The container registry is compromised, allowing attackers to replace legitimate 
+      images with backdoored versions. Lack of image signing or verification causes 
+      automatic deployment of malicious containers.
+    affected_components: [container_registry]
+    affected_data_flows: [container_registry->business_services, container_registry->api_gateway_service]
+    affected_assets: [container_images]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: runtime_security
+    name: Runtime Security
+    description: Use runtime security tools (Falco, Aqua) to detect and prevent container escape attempts, suspicious syscalls, and anomalous behavior in running containers.
+    mitigates: [container_escape, privilege_escalation]
+    implemented_in: [business_services, api_gateway_service]
+
+  - ref: image_scanning
+    name: Image Scanning
+    description: Scan all container images for vulnerabilities using tools like Trivy, Clair, or Snyk before deployment. Block images with critical CVEs from running in production.
+    mitigates: [vulnerable_container_images, supply_chain_attack]
+    implemented_in: [container_registry, cicd_pipeline]
+
+  - ref: image_signing
+    name: Image Signing and Verification
+    description: Sign container images using tools like Cosign or Notary. Verify signatures before pulling images to ensure authenticity and detect tampering.
+    mitigates: [supply_chain_attack, image_registry_compromise]
+    implemented_in: [container_registry, business_services]
+
+  - ref: rbac_policies
+    name: RBAC Policies
+    description: Implement least-privilege RBAC policies for service accounts and users. Regularly audit permissions and restrict access to Kubernetes API and cluster resources.
+    mitigates: [privilege_escalation, secrets_exposure]
+    implemented_in: [business_services, api_gateway_service]
+
+  - ref: pod_security_standards
+    name: Pod Security Standards
+    description: Enforce Pod Security Standards (restricted profile) to prevent privileged containers, host namespace access, and dangerous capabilities.
+    mitigates: [container_escape, privilege_escalation, malicious_admission]
+    implemented_in: [business_services, api_gateway_service]
+
+  - ref: external_secrets_operator
+    name: External Secrets Operator
+    description: Use external secrets management (HashiCorp Vault, AWS Secrets Manager) integrated via operators. Avoid storing secrets in Kubernetes etcd.
+    mitigates: [secrets_exposure]
+    implemented_in: [secrets_manager]
+
+  - ref: mtls_service_mesh
+    name: mTLS Service Mesh
+    description: Deploy service mesh with mutual TLS to encrypt and authenticate all service-to-service communication. Enforce strict traffic policies.
+    mitigates: [insecure_service_communication, network_policy_bypass]
+    implemented_in: [service_mesh, business_services]
+
+  - ref: network_policies
+    name: Network Policies
+    description: Define strict Kubernetes network policies to restrict pod-to-pod communication. Implement zero-trust networking with default-deny rules.
+    mitigates: [network_policy_bypass, insecure_service_communication]
+    implemented_in: [business_services, database_pods]
+
+  - ref: resource_quotas
+    name: Resource Quotas and Limits
+    description: Set resource quotas at namespace level and resource limits on pods to prevent resource exhaustion and denial of service attacks.
+    mitigates: [denial_of_service]
+    implemented_in: [business_services, api_gateway_service]
+
+  - ref: ingress_security
+    name: Ingress Security
+    description: Configure ingress with strong TLS (TLS 1.3), implement authentication/authorization, use WAF policies, and restrict backend service exposure.
+    mitigates: [insecure_ingress, denial_of_service]
+    implemented_in: [ingress_controller]
+
+  - ref: admission_controllers
+    name: Admission Controllers
+    description: Use admission controllers (OPA Gatekeeper, Kyverno) to enforce security policies, validate configurations, and prevent insecure workload deployments.
+    mitigates: [malicious_admission, privilege_escalation, vulnerable_container_images]
+    implemented_in: [business_services, api_gateway_service]
+
+  - ref: encrypted_storage
+    name: Encrypted Storage
+    description: Enable encryption at rest for persistent volumes using storage class encryption or volume-level encryption. Use encrypted etcd for cluster state.
+    mitigates: [persistent_storage_exposure, secrets_exposure]
+    implemented_in: [persistent_storage, secrets_manager]
+
+  - ref: log_sanitization
+    name: Log Sanitization
+    description: Sanitize logs to remove sensitive data before collection. Implement access controls on logging infrastructure to limit who can view logs.
+    mitigates: [logging_data_leakage, secrets_exposure]
+    implemented_in: [business_services]
+
+  - ref: registry_access_control
+    name: Registry Access Control
+    description: Implement strong authentication and authorization for container registry. Use private registries with vulnerability scanning and access auditing.
+    mitigates: [image_registry_compromise, supply_chain_attack]
+    implemented_in: [container_registry]
+
+  - ref: workload_isolation
+    name: Workload Isolation
+    description: Use node pools, taints/tolerations, and pod anti-affinity to isolate sensitive workloads. Consider using sandboxed runtimes like gVisor or Kata Containers.
+    mitigates: [container_escape, network_policy_bypass]
+    implemented_in: [business_services, database_pods]
