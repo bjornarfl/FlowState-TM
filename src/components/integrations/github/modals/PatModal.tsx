@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { Eye, EyeOff, ExternalLink, ShieldAlert } from 'lucide-react';
 import {
   GitHubDomain,
   GitHubAction,
@@ -113,7 +113,21 @@ export const PatModal: React.FC<PatModalProps> = ({
           </div>
 
           {/* Error display */}
-          {error && <div className="pat-error">{error}</div>}
+          {error && (
+            <div className="pat-error">
+              {error.includes('missing required permissions') ? (
+                <div className="pat-error-detailed">
+                  <div className="pat-error-header">
+                    <ShieldAlert size={16} />
+                    <strong>Insufficient Permissions</strong>
+                  </div>
+                  <p>{error}</p>
+                </div>
+              ) : (
+                error
+              )}
+            </div>
+          )}
           
           {/* Persist toggle */}
           <div className="form-group checkbox-group">

@@ -14,11 +14,33 @@ export interface SavedModel {
   githubMetadata?: GitHubMetadata;
 }
 
+/**
+ * Serializable save-source metadata (no FileSystemFileHandle — not serializable).
+ * Used to restore the save-source indicator on draft recovery.
+ */
+export interface SerializedSaveSource {
+  type: 'browser' | 'file' | 'github';
+  /** For browser: the IndexedDB model ID */
+  modelId?: string;
+  /** For browser: display name */
+  modelName?: string;
+  /** For file: the filename (handle is restored separately) */
+  fileName?: string;
+  /** For github: full metadata */
+  githubMeta?: GitHubMetadata;
+}
+
 export interface AutoSaveDraft {
   name: string;
   content: string;
   savedAt: number;
   githubMetadata?: GitHubMetadata;
+  /** Which save source was active when this draft was written */
+  saveSource?: SerializedSaveSource;
+  /** Timestamp of the last successful save to source (browser/file/github) */
+  lastSavedToSourceAt?: number;
+  /** Whether the content had unsaved changes when the draft was written */
+  isDirty?: boolean;
 }
 
 const AUTOSAVE_KEY = 'autosave-draft';
@@ -44,6 +66,26 @@ export const saveToBrowserStorage = async (
   };
   await set(id, metadata);
   return id;
+};
+
+/**
+ * Update an existing browser storage entry's content in place (overwrite).
+ * Returns true if the entry was found and updated, false otherwise.
+ */
+export const updateModelContent = async (
+  id: string,
+  content: string,
+  name?: string,
+  githubMetadata?: GitHubMetadata
+): Promise<boolean> => {
+  const model = await get<SavedModel>(id);
+  if (!model) return false;
+  model.content = content;
+  model.savedAt = Date.now();
+  if (name !== undefined) model.name = name;
+  if (githubMetadata !== undefined) model.githubMetadata = githubMetadata;
+  await set(id, model);
+  return true;
 };
 
 /**
@@ -139,13 +181,19 @@ export const duplicateModelInBrowserStorage = async (
 export const saveAutoSaveDraft = async (
   name: string,
   content: string,
-  githubMetadata?: GitHubMetadata
+  githubMetadata?: GitHubMetadata,
+  saveSource?: SerializedSaveSource,
+  lastSavedToSourceAt?: number,
+  isDirty?: boolean
 ): Promise<void> => {
   const draft: AutoSaveDraft = {
     name,
     content,
     savedAt: Date.now(),
     ...(githubMetadata && { githubMetadata }),
+    ...(saveSource && { saveSource }),
+    ...(lastSavedToSourceAt && { lastSavedToSourceAt }),
+    ...(isDirty !== undefined && { isDirty }),
   };
   await set(AUTOSAVE_KEY, draft);
 };
@@ -280,25 +328,30 @@ export const requestFileHandlePermission = async (
 };
 
 /**
- * Write content to a file handle
+ * Write content to a file handle.
+ * Returns the file's new `lastModified` timestamp after the write completes,
+ * which callers can use to keep external-change-detection in sync.
  */
 export const writeToFileHandle = async (
   handle: FileSystemFileHandle,
   content: string
-): Promise<void> => {
+): Promise<number> => {
   const writable = await handle.createWritable();
   try {
     await writable.write(content);
   } finally {
     await writable.close();
   }
+  // Re-read file metadata to get the updated lastModified timestamp
+  const file = await handle.getFile();
+  return file.lastModified;
 };
 
 /**
  * Open a file using the File System Access API
  * Returns the file handle and content, or null if cancelled
  */
-export const openFileWithPicker = async (): Promise<{ handle: FileSystemFileHandle; content: string; name: string } | null> => {
+export const openFileWithPicker = async (): Promise<{ handle: FileSystemFileHandle; content: string; name: string; lastModified: number } | null> => {
   try {
     const [handle] = await window.showOpenFilePicker({
       types: [
@@ -315,7 +368,7 @@ export const openFileWithPicker = async (): Promise<{ handle: FileSystemFileHand
     const file = await handle.getFile();
     const content = await file.text();
     
-    return { handle, content, name: file.name };
+    return { handle, content, name: file.name, lastModified: file.lastModified };
   } catch (error) {
     // User cancelled the picker
     if (error instanceof Error && error.name === 'AbortError') {

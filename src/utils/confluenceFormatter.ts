@@ -42,9 +42,13 @@ export function generateConfluenceMarkup(
   // Generate shareable URL for editing the threat model
   const editUrl = generateShareableUrl(threatModel, githubMetadata);
   
-  html.push('- <a href="#">Learn more about FlowState</a>');
-  html.push('<br>');
-  html.push(`- <a href="${editUrl}">Open/Edit this Threat Model</a>`);
+  html.push('- <a href="https://github.com/bjornarfl/FlowState-TM>Learn more about FlowState</a>');
+  
+  // Only include the edit URL if it's under 8000 characters
+  if (editUrl.length < 8000) {
+    html.push('<br>');
+    html.push(`- <a href="${editUrl}">Open/Edit this Threat Model</a>`);
+  }
   
   if (githubMetadata) {
     const sourceUrl = `https://${githubMetadata.domain}/${githubMetadata.owner}/${githubMetadata.repository}/blob/${githubMetadata.branch}/${githubMetadata.path}`;

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import './EditablePicker.css';
 
 export interface PickerItem {
@@ -111,19 +112,19 @@ export default function EditablePicker({ value, availableItems, placeholder = "A
     }
   }, [autoEdit, useInWrapper]);
 
-  const saveChanges = (): void => {
+  const saveChanges = useCallback((): void => {
     // Only save if the selected items have actually changed
     const hasChanged = selectedItems.length !== value.length || 
                        !selectedItems.every(item => value.includes(item));
     if (hasChanged) {
       onSave?.(selectedItems);
     }
-  };
+  }, [selectedItems, value, onSave]);
 
   // Keep the ref updated with the latest saveChanges function
   useEffect(() => {
     saveChangesRef.current = saveChanges;
-  });
+  }, [saveChanges]);
 
   // Register a stable save callback that calls the latest version
   useEffect(() => {
@@ -133,25 +134,28 @@ export default function EditablePicker({ value, availableItems, placeholder = "A
   }, [onRegisterSave]);
 
   // Click-outside handler to exit edit mode
-  useEffect(() => {
-    if (!isEditing) return;
+  const handleClickOutside = useCallback((): void => {
+    saveChanges();
+    setIsEditing(false);
+    setShowSuggestions(false);
+    setSearchTerm('');
+    if (compactMode) {
+      setIsExpanded(false);
+    }
+  }, [saveChanges, compactMode]);
 
-    const handleClickOutside = (e: MouseEvent): void => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        saveChanges();
-        setIsEditing(false);
-        setShowSuggestions(false);
-        setSearchTerm('');
-        if (compactMode) {
-          setIsExpanded(false);
-        }
-      }
-    };
-
-    // Use mousedown to catch clicks before they cause blur
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isEditing, compactMode, saveChanges]);
+  useClickOutside(
+    containerRef,
+    handleClickOutside,
+    isEditing,
+    [
+      '.picker-suggestions',
+      '.picker-tag-remove',
+      '.picker-suggestion-item',
+      '.picker-tags-container'
+    ],
+    100
+  );
 
   const handleClick = (): void => {
     if (compactMode && !isExpanded) {
@@ -305,7 +309,12 @@ export default function EditablePicker({ value, availableItems, placeholder = "A
       ref={containerRef}
       tabIndex={0}
       onKeyDown={(e) => {
-        if (!isEditing) {
+        if (isEditing) {
+          // Stop Escape from propagating to parent when in edit mode
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+          }
+        } else {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             handleClick();

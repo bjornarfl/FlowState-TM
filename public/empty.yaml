@@ -1,12 +1,12 @@
 schema_version: '1.0'
-name: Your name here
-description: your description here
-
-# Assets - Represents data or resources that need protection
-assets: []
+name: TM Title
+description: Description of scope...
 
 # Components - Represents the objects in a threat model (users, applications, databases, etc.)
 components: []
+
+# Assets - Represents data or resources that need protection
+assets: []
 
 # Data Flows - Represents connections between components with data flowing between them
 data_flows: []

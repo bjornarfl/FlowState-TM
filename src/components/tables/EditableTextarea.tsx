@@ -6,15 +6,18 @@ interface EditableTextareaProps {
   onSave?: (newValue: string) => void;
   onTabPress?: (shiftKey: boolean) => void;
   onNavigate?: (direction: 'up' | 'down' | 'left' | 'right') => void;
+  placeholder?: string;
 }
 
 const EditableTextarea = forwardRef<HTMLTextAreaElement, EditableTextareaProps>(({ 
   value, 
   onSave,
   onTabPress,
-  onNavigate 
+  onNavigate,
+  placeholder
 }, ref) => {
-  const [editValue, setEditValue] = React.useState(value);
+  const isPlaceholder = placeholder && value === placeholder;
+  const [editValue, setEditValue] = React.useState(isPlaceholder ? '' : value);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Expose the textarea ref to parent components
@@ -22,8 +25,9 @@ const EditableTextarea = forwardRef<HTMLTextAreaElement, EditableTextareaProps>(
 
   // Update internal state when value prop changes
   useEffect(() => {
-    setEditValue(value);
-  }, [value]);
+    const isPlaceholder = placeholder && value === placeholder;
+    setEditValue(isPlaceholder ? '' : value);
+  }, [value, placeholder]);
 
   // Auto-resize textarea as content changes
   useEffect(() => {
@@ -48,8 +52,11 @@ const EditableTextarea = forwardRef<HTMLTextAreaElement, EditableTextareaProps>(
   }, []);
 
   const handleSave = (): void => {
-    if (onSave && editValue !== value) {
-      onSave(editValue);
+    const currentIsPlaceholder = placeholder && value === placeholder;
+    const newValueToSave = editValue.trim() ? editValue : (placeholder || '');
+    
+    if (onSave && newValueToSave !== value) {
+      onSave(newValueToSave);
     }
   };
 
@@ -120,6 +127,7 @@ const EditableTextarea = forwardRef<HTMLTextAreaElement, EditableTextareaProps>(
       ref={textareaRef}
       className="always-editable-textarea-input"
       value={editValue}
+      placeholder={placeholder}
       onChange={(e) => setEditValue(e.target.value)}
       onKeyDown={handleKeyDown}
       onBlur={handleSave}

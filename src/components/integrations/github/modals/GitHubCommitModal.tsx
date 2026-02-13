@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, AlertTriangle, X, XCircle, FileText, MessageSquare } from 'lucide-react';
-import type { GitHubMetadata, GitHubDomain } from '../types';
+import { GitBranch, AlertTriangle, X, XCircle, FileText, MessageSquare, Image, FileCode, FilePlusCorner } from 'lucide-react';
+import type { GitHubMetadata, GitHubDomain, CommitExtraFilesOptions } from '../types';
 import { GitHubApiClient } from '../githubApi';
 import { clearPatIfNotPersisted } from '../patStorage';
 import { RepositoryBranchSelector } from '../RepositoryBranchSelector';
@@ -13,7 +13,7 @@ export interface GitHubCommitModalProps {
   domain: GitHubDomain;
   getApiClient: () => Promise<GitHubApiClient | null>;
   onClose: () => void;
-  onCommit: (owner: string, repo: string, branch: string, path: string, commitMessage: string, sha?: string) => Promise<void>;
+  onCommit: (owner: string, repo: string, branch: string, path: string, commitMessage: string, sha?: string, extraFiles?: CommitExtraFilesOptions) => Promise<void>;
 }
 
 export function GitHubCommitModal({
@@ -38,7 +38,10 @@ export function GitHubCommitModal({
   const [initialBranches, setInitialBranches] = useState<Array<{name: string; protected: boolean}>>([]);
   const [apiClient, setApiClient] = useState<GitHubApiClient | null>(null);
   
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [includeDiagramImage, setIncludeDiagramImage] = useState(false);
+  const [includeMarkdownFile, setIncludeMarkdownFile] = useState(false);
+  
+  const [isEditMode, setIsEditMode] = useState(!metadata);
   const [conflictDetected, setConflictDetected] = useState(false);
   const [currentSha, setCurrentSha] = useState<string | undefined>();
   const [fileExistsAtNewLocation, setFileExistsAtNewLocation] = useState(false);
@@ -62,9 +65,11 @@ export function GitHubCommitModal({
         setOwner(metadata.owner);
         setRepository(metadata.repository);
         setBranch(metadata.branch);
-        // Extract just the filename from the path
-        const pathParts = metadata.path.split('/');
-        setFilename(pathParts[pathParts.length - 1]);
+        // Extract path relative to .threat-models/ (preserving subfolders) and strip extension
+        const relativePath = metadata.path.startsWith('.threat-models/')
+          ? metadata.path.slice('.threat-models/'.length)
+          : metadata.path.split('/').pop() || '';
+        setFilename(relativePath.replace(/\.(yaml|yml)$/i, ''));
         
         // Pre-populate initial values for selector
         setInitialRepos([{
@@ -82,7 +87,7 @@ export function GitHubCommitModal({
         setOwner('');
         setRepository('');
         setBranch('');
-        setFilename(`${threatModelName.toLowerCase().replace(/\s+/g, '-')}.yaml`);
+        setFilename(threatModelName.toLowerCase().replace(/\s+/g, '-'));
         setInitialRepos([]);
         setInitialBranches([]);
       }
@@ -170,7 +175,7 @@ export function GitHubCommitModal({
       owner === metadata.owner &&
       repository === metadata.repository &&
       branch === metadata.branch &&
-      filename === metadata.path.split('/').pop()
+      `${filename.trim()}.yaml` === (metadata.path.startsWith('.threat-models/') ? metadata.path.slice('.threat-models/'.length) : metadata.path.split('/').pop())
     ) {
       setFileExistsAtNewLocation(false);
       setNewLocationSha(undefined);
@@ -184,7 +189,7 @@ export function GitHubCommitModal({
           return;
         }
 
-        const path = `.threat-models/${filename.trim()}`;
+        const path = `.threat-models/${filename.trim()}.yaml`;
         const fileSha = await apiClient.getFileSha(owner, repository, path, branch);
 
         if (fileSha) {
@@ -224,11 +229,23 @@ export function GitHubCommitModal({
       return;
     }
 
+    // Prevent path traversal outside .threat-models/
+    const normalizedPath = filename.trim().split('/').reduce<string[]>((parts, segment) => {
+      if (segment === '..') parts.pop();
+      else if (segment && segment !== '.') parts.push(segment);
+      return parts;
+    }, []).join('/');
+
+    if (!normalizedPath) {
+      setError('Invalid filename');
+      return;
+    }
+
     setIsCommitting(true);
     setError(null);
 
     try {
-      const path = `.threat-models/${filename.trim()}`;
+      const path = `.threat-models/${normalizedPath}.yaml`;
       
       // Determine SHA to use:
       // - If conflict detected, use currentSha (the latest SHA from the repo)
@@ -245,7 +262,7 @@ export function GitHubCommitModal({
         owner === metadata.owner && 
         repository === metadata.repository && 
         branch === metadata.branch &&
-        filename === metadata.path.split('/').pop()
+        `${filename.trim()}.yaml` === (metadata.path.startsWith('.threat-models/') ? metadata.path.slice('.threat-models/'.length) : metadata.path.split('/').pop())
       ) {
         sha = metadata.sha;
       }
@@ -255,7 +272,13 @@ export function GitHubCommitModal({
       const fullMessage = commitDescription.trim() 
         ? `${commitSummary.trim()}\n\n${commitDescription.trim()}`
         : commitSummary.trim();
-      await onCommit(owner, repository, branch, path, fullMessage, sha);
+      
+      const extraFiles: CommitExtraFilesOptions | undefined = 
+        (includeDiagramImage || includeMarkdownFile)
+          ? { includeDiagramImage, includeMarkdownFile }
+          : undefined;
+      
+      await onCommit(owner, repository, branch, path, fullMessage, sha, extraFiles);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to commit changes');
@@ -334,7 +357,7 @@ export function GitHubCommitModal({
                 }}>
                   <div><strong>Repository:</strong> {owner}/{repository}</div>
                   <div style={{ marginTop: '0.25rem' }}><strong>Branch:</strong> {branch}</div>
-                  <div style={{ marginTop: '0.25rem' }}><strong>Path:</strong> /.threat-models/{filename}</div>
+                  <div style={{ marginTop: '0.25rem' }}><strong>Path:</strong> /.threat-models/{filename}.yaml</div>
                 </div>
               </div>
             ) : (
@@ -360,7 +383,7 @@ export function GitHubCommitModal({
             <div className="github-selector-group">
               <label>
                 <FileText size={14} />
-                Filename *
+                Path / Filename *
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
@@ -371,11 +394,12 @@ export function GitHubCommitModal({
                   id="filename-input"
                   value={filename}
                   onChange={(e) => setFilename(e.target.value)}
-                  placeholder="threat-model.yaml"
+                  placeholder="subfolder/threat-model"
                   disabled={isCommitting}
                   required
                   style={{ flex: 1 }}
                 />
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>.yaml</span>
               </div>
             </div>
               </>
@@ -408,6 +432,43 @@ export function GitHubCommitModal({
                 </div>
               </div>
             )}
+
+            {/* Extra files options */}
+            <div className="commit-extra-files">
+              <label className="commit-form-label"><FilePlusCorner size={14} /> Additional Files</label>
+              <div className="commit-extra-files-options">
+                <label className="commit-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={includeDiagramImage}
+                    onChange={(e) => setIncludeDiagramImage(e.target.checked)}
+                    disabled={isCommitting}
+                  />
+                  <Image size={14} />
+                  <span>Include data flow diagram (.png)</span>
+                </label>
+                <label className="commit-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={includeMarkdownFile}
+                    onChange={(e) => setIncludeMarkdownFile(e.target.checked)}
+                    disabled={isCommitting}
+                  />
+                  <FileCode size={14} />
+                  <span>Include markdown documentation (.md)</span>
+                </label>
+                {includeMarkdownFile && !includeDiagramImage && (
+                  <p className="commit-extra-files-hint">
+                    Markdown will include a Mermaid diagram since no image is selected.
+                  </p>
+                )}
+                {includeMarkdownFile && includeDiagramImage && (
+                  <p className="commit-extra-files-hint">
+                    Markdown will reference the PNG diagram image.
+                  </p>
+                )}
+              </div>
+            </div>
 
             {/* Commit summary */}
             <div className="github-selector-group">

@@ -3,6 +3,7 @@ import { Handle, Position, NodeToolbar } from '@xyflow/react';
 import type { ThreatModelNodeData } from '../../utils/flowTransformer';
 import type { ComponentType } from '../../types/threatModel';
 import EditablePicker from '../tables/EditablePicker';
+import { isComponentNamePlaceholder } from '../../utils/refGenerators';
 import './ThreatModelNode.css';
 
 const COMPONENT_TYPES: { value: ComponentType; label: string; className: string }[] = [
@@ -37,11 +38,13 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
     onTypeChange, 
     onDescriptionChange, 
     onAssetsChange, 
-    onCreateAsset 
+    onCreateAsset,
+    onSelectNode 
   } = data;
   const [isEditing, setIsEditing] = useState(initialEditMode || false);
   const [isHovering, setIsHovering] = useState(false);
-  const [editValue, setEditValue] = useState(label);
+  const isPlaceholder = isComponentNamePlaceholder(label);
+  const [editValue, setEditValue] = useState(isPlaceholder ? '' : label);
   const [dialogDescription, setDialogDescription] = useState(description || '');
   const [wasSelected, setWasSelected] = useState(selected);
   const [activeField, setActiveField] = useState<'name' | 'description' | 'assets' | null>('name');
@@ -83,14 +86,27 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
   };
 
   const handleEditClick = (e: React.MouseEvent): void => {
-    e.preventDefault();
+    // Don't enter edit mode during multi-selection
+    if (e.metaKey || e.ctrlKey) return;
+    
+    e.stopPropagation();
+    // Ensure the node is selected when entering edit mode
+    onSelectNode?.();
+    const isPlaceholder = isComponentNamePlaceholder(label);
+    setEditValue(isPlaceholder ? '' : label);
     setIsEditing(true);
     onEditModeChange?.(true);
   };
 
   const handleDoubleClick = (e: React.MouseEvent): void => {
+    // Don't enter edit mode during multi-selection
+    if (e.metaKey || e.ctrlKey) return;
+    
+    // Prevent text selection but don't stop propagation
     e.preventDefault();
     if (!isEditing) {
+      const isPlaceholder = isComponentNamePlaceholder(label);
+      setEditValue(isPlaceholder ? '' : label);
       setIsEditing(true);
       onEditModeChange?.(true);
     }
@@ -98,8 +114,9 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
 
   // Update editValue when label changes from outside
   useEffect(() => {
-    setEditValue(label);
-  }, [label]);
+    const isPlaceholder = isComponentNamePlaceholder(label);
+    setEditValue(isPlaceholder && isEditing ? '' : label);
+  }, [label, isEditing]);
 
   // Auto-resize textarea based on content
   const autoResizeTextarea = (textarea: HTMLTextAreaElement): void => {
@@ -128,10 +145,13 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
   }, [isEditing, initialEditMode]);
 
   const handleSave = (): void => {
-    if (editValue.trim() && editValue !== label) {
-      onNameChange?.(editValue);
-    } else if (!editValue.trim()) {
-      // Reset to original value if empty
+    const isPlaceholder = isComponentNamePlaceholder(label);
+    const newValueToSave = editValue.trim() ? editValue : label;
+    
+    if (newValueToSave !== label) {
+      onNameChange?.(newValueToSave);
+    } else if (!editValue.trim() && !isPlaceholder) {
+      // Reset to original value if empty and not a placeholder
       setEditValue(label);
     }
   };
@@ -143,7 +163,8 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
       setIsEditing(false);
       onEditModeChange?.(false);
     } else if (e.key === 'Escape') {
-      setEditValue(label);
+      const isPlaceholder = isComponentNamePlaceholder(label);
+      setEditValue(isPlaceholder ? '' : label);
       setIsEditing(false);
       onEditModeChange?.(false);
     } else if (e.key === 'Tab') {
@@ -266,6 +287,7 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
             ref={textareaRef}
             className="node-label-input"
             value={editValue}
+            placeholder={isPlaceholder ? label : undefined}
             onChange={(e) => {
               setEditValue(e.target.value);
               autoResizeTextarea(e.target);
@@ -284,6 +306,7 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
             <button 
               className={`node-edit-button${isHovering && !isDraggingNode ? ' visible' : ''}`}
               onClick={handleEditClick}
+              onMouseDown={(e) => e.stopPropagation()}
               title="Edit node"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

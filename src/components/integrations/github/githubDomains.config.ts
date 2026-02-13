@@ -37,7 +37,7 @@ export const GITHUB_DOMAINS: readonly GitHubDomainConfig[] = [
     displayName: 'GitHub.com',
     isEnterprise: false,
     isDefault: true,
-  }
+  },
   // Add your enterprise GitHub instances here:
   // {
   //   domain: 'github.yourcompany.com',
@@ -91,7 +91,13 @@ export function isValidDomain(domain: string): domain is GitHubDomain {
 
 /**
  * Build a regex pattern to match any configured domain in URLs
+ * Returns a pattern with proper escaping for use in hostname matching
  */
 export function buildDomainRegexPattern(): string {
-  return GITHUB_DOMAINS.map((d) => d.domain.replace(/\./g, '\\.')).join('|');
+  // Escape dots and wrap in non-capturing group for safe URL matching
+  return GITHUB_DOMAINS.map((d) => {
+    // Escape special regex characters in domain
+    const escapedDomain = d.domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escapedDomain;
+  }).join('|');
 }

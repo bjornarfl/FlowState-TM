@@ -445,7 +445,7 @@
   border-radius: 4px;
   background: var(--bg-primary, #fff);
   color: var(--text-primary, #333);
-  resize: vertical;
+  resize: none;
   min-height: 60px;
 }
 

@@ -78,3 +78,7 @@
   background-color: var(--bg-hover);
 }
 
+.external-change-actions {
+  flex-wrap: wrap;
+}
+

@@ -1,10 +1,16 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, DragStartEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 import EditableCell from './EditableCell';
 import EditableTextarea from './EditableTextarea';
 import EditableStatusPickerCell from './EditableStatusPickerCell';
 import MultiPickerCell, { PickerSection } from './MultiPickerCell';
+import SortableTableRow from './SortableTableRow';
 import type { ThreatModel, ControlStatus } from '../../types/threatModel';
 import type { GitHubMetadata } from '../integrations/github/types';
+import { Info } from 'lucide-react';
+import { isControlNamePlaceholder } from '../../utils/refGenerators';
 
 interface ControlsTableProps {
   threatModel: ThreatModel | null;
@@ -18,7 +24,7 @@ interface ControlsTableProps {
   onControlImplementedInChange: (ref: string, newComponents: string[]) => void;
   onRemoveControl: (ref: string) => void;
   onAddControl: () => void;
-  onNavigateToNextTable?: (columnIndex: number) => void;
+  onReorderControls: (newOrder: string[]) => void;
   onNavigateToPreviousTable?: (columnIndex: number) => void;
 }
 
@@ -38,20 +44,47 @@ const ControlsTable = React.memo(forwardRef<ControlsTableRef, ControlsTableProps
   onControlImplementedInChange,
   onRemoveControl,
   onAddControl,
-  onNavigateToNextTable,
+  onReorderControls,
   onNavigateToPreviousTable,
 }, ref): React.JSX.Element {
   const cellRefs = useRef<Map<string, HTMLElement>>(new Map());
   const shouldFocusNewControl = useRef(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const controls = threatModel?.controls || [];
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent): void => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent): void => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const controls = threatModel?.controls || [];
+      const oldIndex = controls.findIndex((control) => control.ref === active.id);
+      const newIndex = controls.findIndex((control) => control.ref === over.id);
+
+      const newOrder = arrayMove(controls, oldIndex, newIndex).map((control) => control.ref);
+      onReorderControls(newOrder);
+    }
+    setActiveId(null);
+  };
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     focusCellByColumnIndex: (columnIndex: number, rowIndex: number = 0) => {
       if (controls.length > 0) {
         const targetIndex = Math.min(rowIndex, controls.length - 1);
-        focusCell(controls[targetIndex].ref, columnIndex);
+        // Focus after a brief delay to ensure rendering completes
+        setTimeout(() => focusCell(controls[targetIndex].ref, columnIndex), 50);
       }
     },
   }));
@@ -119,10 +152,8 @@ const ControlsTable = React.memo(forwardRef<ControlsTableRef, ControlsTableProps
     } else if (direction === 'down') {
       if (controlIndex < controls.length - 1) {
         focusCell(controls[controlIndex + 1].ref, columnIndex);
-      } else if (onNavigateToNextTable) {
-        // At last row, navigate to next table
-        onNavigateToNextTable(columnIndex);
       }
+      // At last row, do nothing (don't navigate to next table)
     } else if (direction === 'left') {
       if (columnIndex > 0) {
         focusCell(controlRef, columnIndex - 1);
@@ -155,31 +186,49 @@ const ControlsTable = React.memo(forwardRef<ControlsTableRef, ControlsTableProps
   };
 
   return (
-    <div className="table-container">
-      <h3>Controls</h3>
-      <h4>What are we going to do about it?</h4>
-      {controls.length > 0 && (
-        <table>
-          <colgroup>
-            <col style={{ width: '20%' }} />
-            <col style={{ width: 'auto' }} />
-            <col style={{ width: '40px' }} />
-            <col style={{ width: '40px' }} />
-            <col style={{ width: '20px' }} />
-          </colgroup>
-          <thead className="header-controls">
-            <tr>
-              <th>Name</th>
-              <th>Description</th>
+    <div className="table-section">
+      <div className="table-header">
+        <span>Controls</span>
+        <span className="header-help-icon" data-tooltip='Measures implemented to mitigate threats.'>
+          <Info size={16} />
+        </span>
+      </div>
+      <div className="table-content">
+          <div className={`table-container ${activeId ? 'dragging' : ''}`}>
+            {controls.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <table>
+            <colgroup>
+            <col style={{ width: '0px' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: 'auto' }} />
+              <col style={{ width: '40px' }} />
+              <col style={{ width: '45px' }} />
+              <col style={{ width: '35px' }} />
+            </colgroup>
+            <thead className="header-controls">
+              <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Description</th>
 
-              <th className="control-items-th">Items</th>
-              <th className="status-column-th">Status</th>
-              <th className="action-column"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {controls.map((control) => (
-              <tr key={control.ref}>
+                <th className="control-items-th">Items</th>
+                <th className="status-column-th">Status</th>
+                <th className="action-column"></th>
+              </tr>
+            </thead>
+            <SortableContext
+              items={controls.map((control) => control.ref)}
+              strategy={verticalListSortingStrategy}
+            >
+              <tbody>
+                {controls.map((control) => (
+                  <SortableTableRow key={control.ref} id={control.ref}>
                 <td>
                   <div
                     ref={(el: HTMLDivElement | null) => {
@@ -190,6 +239,7 @@ const ControlsTable = React.memo(forwardRef<ControlsTableRef, ControlsTableProps
                   >
                     <EditableCell
                       value={control.name}
+                      placeholder={isControlNamePlaceholder(control.name) ? control.name : undefined}
                       onSave={(newName: string) => onControlNameChange(control.ref, newName)}
                       onTabPress={(shiftKey) => handleTabPress(control.ref, 0, shiftKey)}
                       onNavigate={(direction) => handleNavigate(control.ref, 0, direction)}
@@ -256,7 +306,8 @@ const ControlsTable = React.memo(forwardRef<ControlsTableRef, ControlsTableProps
                   >
                     {threatModel && (
                       <EditableStatusPickerCell
-                        control={control}
+                        entityType="control"
+                        entity={control}
                         threatModel={threatModel}
                         githubMetadata={githubMetadata}
                         onStatusChange={(newStatus) => onControlStatusChange(control.ref, newStatus)}
@@ -277,18 +328,44 @@ const ControlsTable = React.memo(forwardRef<ControlsTableRef, ControlsTableProps
                     ×
                   </button>
                 </td>
-              </tr>
+              </SortableTableRow>
             ))}
           </tbody>
-        </table>
-      )}
-      <button
-        className="add-row-button add-row-controls"
-        onClick={onAddControl}
-        title="Add control"
-      >
-        + Add Control
-      </button>
+        </SortableContext>
+      </table>
+      <DragOverlay>
+        {activeId ? (
+          <div
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              padding: '8px 12px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              cursor: 'grabbing',
+              minHeight: '40px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <div style={{ marginRight: '8px', opacity: 0.5 }}>⋮⋮</div>
+            <span>
+              {controls.find((c) => c.ref === activeId)?.name || 'Control'}
+            </span>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  )}
+            <button
+              className="add-row-button add-row-controls"
+              onClick={onAddControl}
+              title="Add control"
+            >
+              + Add Control
+            </button>
+          </div>
+        </div>
     </div>
   );
 }));

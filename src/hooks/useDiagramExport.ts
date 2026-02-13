@@ -12,11 +12,13 @@ import { generateConfluenceMarkup, copyConfluenceToClipboard } from '../utils/co
 
 /**
  * Generate markdown documentation from the threat model
+ * @param includePngReference - If true, includes a reference to a PNG file. If false, embeds diagram as Mermaid.
  */
 function generateMarkdown(
   threatModel: ThreatModel,
   modelName?: string,
-  githubMetadata?: GitHubMetadata | null
+  githubMetadata?: GitHubMetadata | null,
+  includePngReference: boolean = true
 ): string {
   const lines: string[] = [];
   lines.push(`# What are we working on?`);
@@ -27,12 +29,132 @@ function generateMarkdown(
     lines.push('');
   }
 
-  // Include diagram if available
+  // Include diagram
   const fileName = (modelName || threatModel.name || 'threat_model').replace(/\s+/g, '_').toLowerCase();
-  if (modelName) {
-    lines.push('## Data-Flow Diagram');
-    lines.push('');
+  lines.push('## Data-Flow Diagram');
+  lines.push('');
+  
+  if (includePngReference && modelName) {
+    // Scenario 1: Link to PNG file (for zip downloads)
     lines.push(`![Threat Model Diagram](${fileName}_diagram.png)`);
+    lines.push('');
+  } else {
+    // Scenario 2: Embed diagram as Mermaid (for copy to clipboard)
+    lines.push('```mermaid');
+    lines.push('graph LR');
+    
+    // Build a map of component ref to index for easy lookup
+    const componentRefToIdx = new Map<string, number>();
+    threatModel.components?.forEach((component, idx) => {
+      componentRefToIdx.set(component.ref, idx);
+    });
+    
+    // Helper function to generate component node
+    const generateComponentNode = (component: typeof threatModel.components[0], idx: number, indent: string = '    ') => {
+      const nodeId = `C${idx}`;
+      const nodeName = component.name.replace(/["\[\]]/g, '');
+      
+      // Different shapes for different component types
+      if (component.component_type === 'data_store') {
+        lines.push(`${indent}${nodeId}[(${nodeName})]`);
+      } else if (component.component_type === 'external_dependency') {
+        lines.push(`${indent}${nodeId}[${nodeName}]`);
+      } else {
+        lines.push(`${indent}${nodeId}(${nodeName})`);
+      }
+    };
+    
+    // Check if any component belongs to multiple boundaries
+    const componentBoundaryCount = new Map<string, number>();
+    
+    if (threatModel.boundaries && threatModel.boundaries.length > 0) {
+      threatModel.boundaries.forEach((boundary) => {
+        if (boundary.components && boundary.components.length > 0) {
+          boundary.components.forEach((componentRef) => {
+            const count = componentBoundaryCount.get(componentRef) || 0;
+            componentBoundaryCount.set(componentRef, count + 1);
+          });
+        }
+      });
+    }
+    
+    // Check if there are any overlapping boundaries
+    const hasOverlappingBoundaries = Array.from(componentBoundaryCount.values()).some(count => count > 1);
+    
+    // Generate boundaries as subgraphs only if there are no overlapping boundaries
+    if (!hasOverlappingBoundaries && threatModel.boundaries && threatModel.boundaries.length > 0) {
+      const componentsInBoundaries = new Set<string>();
+      
+      threatModel.boundaries.forEach((boundary, boundaryIdx) => {
+        const boundaryName = boundary.name.replace(/["\[\]]/g, '');
+        
+        if (boundary.components && boundary.components.length > 0) {
+          lines.push(`    subgraph B${boundaryIdx}["${boundaryName}"]`);
+          
+          boundary.components.forEach((componentRef) => {
+            const idx = componentRefToIdx.get(componentRef);
+            if (idx !== undefined) {
+              const component = threatModel.components[idx];
+              generateComponentNode(component, idx, '        ');
+              componentsInBoundaries.add(componentRef);
+            }
+          });
+          
+          lines.push('    end');
+        }
+      });
+      lines.push('');
+      
+      // Generate nodes for components not in any boundary
+      if (threatModel.components && threatModel.components.length > 0) {
+        const unboundedComponents = threatModel.components.filter(
+          (component) => !componentsInBoundaries.has(component.ref)
+        );
+        
+        if (unboundedComponents.length > 0) {
+          unboundedComponents.forEach((component) => {
+            const idx = componentRefToIdx.get(component.ref);
+            if (idx !== undefined) {
+              generateComponentNode(component, idx);
+            }
+          });
+          lines.push('');
+        }
+      }
+    } else {
+      // No boundaries or overlapping boundaries - render all components without subgraphs
+      if (threatModel.components && threatModel.components.length > 0) {
+        threatModel.components.forEach((component) => {
+          const idx = componentRefToIdx.get(component.ref);
+          if (idx !== undefined) {
+            generateComponentNode(component, idx);
+          }
+        });
+        lines.push('');
+      }
+    }
+    
+    // Generate Mermaid edges for data flows
+    if (threatModel.data_flows && threatModel.data_flows.length > 0) {
+      threatModel.data_flows.forEach((flow) => {
+        const sourceIdx = componentRefToIdx.get(flow.source);
+        const targetIdx = componentRefToIdx.get(flow.destination);
+        
+        if (sourceIdx !== undefined && targetIdx !== undefined) {
+          const sourceId = `C${sourceIdx}`;
+          const targetId = `C${targetIdx}`;
+          const label = flow.label ? flow.label.replace(/["\[\]]/g, '') : '';
+          
+          if (flow.direction === 'bidirectional') {
+            lines.push(`    ${sourceId} <-->|${label}| ${targetId}`);
+          } else {
+            lines.push(`    ${sourceId} -->|${label}| ${targetId}`);
+          }
+        }
+      });
+    }
+    
+    lines.push('```');
     lines.push('');
   }
 
@@ -140,9 +262,9 @@ function generateMarkdown(
   if (githubMetadata) {
     const url = `https://${window.location.host}/github/${githubMetadata.owner}/${githubMetadata.repository}/${githubMetadata.path}?branch=${githubMetadata.branch}`;
     const url2 = `https://${githubMetadata.domain}/${githubMetadata.owner}/${githubMetadata.repository}/blob/${githubMetadata.branch}/.threat-models/${githubMetadata.path}`;
-    lines.push(`[Made with FlowState TM](#) - [See Source File on GitHub](${url2}) - Edit source file [here](${url})`);
+    lines.push(`[Made with FlowState TM](https://github.com/bjornarfl/FlowState-TM) - [See Source File on GitHub](${url2}) - Edit source file [here](${url})`);
   } else {
-    lines.push('[Made with FlowState TM](#)');
+    lines.push('[Made with FlowState TM](https://github.com/bjornarfl/FlowState-TM)');
   }
 
   return lines.join('\n');
@@ -218,6 +340,13 @@ export function useDiagramExport(
       // Calculate the bounding box of all nodes using their actual positions
       const nodes = viewport.querySelectorAll('.react-flow__node');
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      
+      // Parse viewport transform to get current pan/zoom
+      const transform = viewport.style.transform;
+      const transformMatch = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)\s*scale\(([-\d.]+)\)/);
+      const viewportX = transformMatch ? parseFloat(transformMatch[1]) : 0;
+      const viewportY = transformMatch ? parseFloat(transformMatch[2]) : 0;
+      const viewportZoom = transformMatch ? parseFloat(transformMatch[3]) : 1;
       
       nodes.forEach((node) => {
         const nodeElement = node as HTMLElement;
@@ -311,7 +440,7 @@ export function useDiagramExport(
     if (threatModel) {
       const modelName = threatModel.name || 'threat_model';
       
-      const markdown = generateMarkdown(threatModel, modelName, githubMetadata);
+      const markdown = generateMarkdown(threatModel, modelName, githubMetadata, false);
       const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -356,8 +485,8 @@ export function useDiagramExport(
       // Add YAML file
       folder.file(`${folderName}.yaml`, yamlContent);
 
-      // Add Markdown file
-      const markdown = generateMarkdown(threatModel, modelName, githubMetadata);
+      // Add Markdown file (with PNG reference since PNG is in the same folder)
+      const markdown = generateMarkdown(threatModel, modelName, githubMetadata, true);
       folder.file(`${folderName}.md`, markdown);
 
       // Add PNG diagram
@@ -429,6 +558,7 @@ export function useDiagramExport(
   }, [captureDiagram]);
 
   return {
+    captureDiagram,
     handleDownloadMarkdown,
     handleDownloadPng,
     handleDownloadFolder,

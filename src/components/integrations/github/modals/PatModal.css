@@ -101,6 +101,24 @@
   margin-bottom: 1rem;
 }
 
+.pat-error-detailed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pat-error-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pat-error-detailed p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
 .scopes-info {
   background: var(--bg-secondary);
   padding: 1rem;

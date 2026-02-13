@@ -30,6 +30,7 @@ export interface UseFlowDiagramParams {
   isComponentInsideBoundary: (componentX: number, componentY: number, boundary: any) => boolean;
   handleDataFlowLabelChange: (ref: string, newLabel: string) => void;
   handleDataFlowDirectionChange: (ref: string, newDirection: Direction) => void;
+  handleToggleDirectionAndReverse: (dataFlowRef: string, currentDirection: string) => void;
   recordState: () => void;
 }
 
@@ -60,9 +61,54 @@ export function useFlowDiagram({
   updateBoundaryMemberships,
   handleDataFlowLabelChange,
   handleDataFlowDirectionChange,
+  handleToggleDirectionAndReverse,
 }: UseFlowDiagramParams): UseFlowDiagramResult {
   const keyPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordStateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isShiftPressedRef = useRef<boolean>(false);
+  const mouseDownPositionRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  
+  // Track Shift key state and mouse position globally
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey) {
+        isShiftPressedRef.current = true;
+      }
+    };
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.shiftKey) {
+        isShiftPressedRef.current = false;
+      }
+    };
+    
+    const handleMouseDown = (e: MouseEvent) => {
+      mouseDownPositionRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        time: Date.now(),
+      };
+    };
+    
+    const handleMouseUp = () => {
+      // Clear after a short delay to allow selection changes to process
+      setTimeout(() => {
+        mouseDownPositionRef.current = null;
+      }, 50);
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
   
   // Helper to record state with debouncing to avoid duplicate snapshots
   const debouncedRecordState = useCallback(() => {
@@ -81,8 +127,31 @@ export function useFlowDiagram({
 
   const onNodesChange = useCallback(
     (changes: any) => {
+      // Filter out deselection changes when Shift is pressed (multi-select mode)
+      // But only if we're likely in a click scenario (not a drag)
+      const filteredChanges = isShiftPressedRef.current && mouseDownPositionRef.current
+        ? changes.filter((change: any) => {
+            // Allow all non-select changes
+            if (change.type !== 'select') return true;
+            
+            // Check if this is likely a click vs a drag
+            const mouseDown = mouseDownPositionRef.current;
+            const timeSinceMouseDown = Date.now() - (mouseDown?.time || 0);
+            
+            // If mouse was pressed very recently (within 500ms), assume it's a click
+            // This prevents deselection during the click event
+            if (timeSinceMouseDown < 500) {
+              // Allow selection (selected: true), but block deselection (selected: false)
+              return change.selected !== false;
+            }
+            
+            // Otherwise allow all selection changes (it's a drag or box select)
+            return true;
+          })
+        : changes;
+      
       // Handle node deletions first (before applying changes)
-      const removeChanges = changes.filter((change: any) => change.type === 'remove');
+      const removeChanges = filteredChanges.filter((change: any) => change.type === 'remove');
       if (removeChanges.length > 0) {
         // Record state BEFORE deletion so undo can restore the deleted items
         recordState();
@@ -226,7 +295,7 @@ export function useFlowDiagram({
       }
       
       setNodes((nodesSnapshot) => {
-        const updatedNodes = applyNodeChanges(changes, nodesSnapshot);
+        const updatedNodes = applyNodeChanges(filteredChanges, nodesSnapshot);
         
         // Check if any change involves a boundary being resized or moved
         const hasBoundaryChange = changes.some((change: any) => {
@@ -249,7 +318,7 @@ export function useFlowDiagram({
         }
 
         // Update threat model for dimension and position changes
-        changes.forEach((change: any) => {
+        filteredChanges.forEach((change: any) => {
           const node = updatedNodes.find((n: any) => n.id === change.id);
           
           // Handle boundary dimension changes
@@ -724,6 +793,7 @@ export function useFlowDiagram({
             edgeRef: edgeId, // Store the edge ref
             onLabelChange: handleDataFlowLabelChange,
             onDirectionChange: handleDataFlowDirectionChange,
+            onToggleDirectionAndReverse: handleToggleDirectionAndReverse,
             onEditModeChange: setIsEditingMode,
           },
         }
@@ -734,7 +804,7 @@ export function useFlowDiagram({
         recordState();
       }, 0);
     },
-    [handleDataFlowLabelChange, handleDataFlowDirectionChange, updateYaml, setThreatModel, setEdges, setNodes, setIsEditingMode, recordState, threatModelRef],
+    [handleDataFlowLabelChange, handleDataFlowDirectionChange, handleToggleDirectionAndReverse, updateYaml, setThreatModel, setEdges, setNodes, setIsEditingMode, recordState, threatModelRef],
   );
 
   // Handle edge reconnection
@@ -780,6 +850,7 @@ export function useFlowDiagram({
           edgeRef: newRef, // Update the stored edge ref
           onLabelChange: handleDataFlowLabelChange,
           onDirectionChange: handleDataFlowDirectionChange,
+          onToggleDirectionAndReverse: handleToggleDirectionAndReverse,
         },
       }));
       
@@ -834,7 +905,7 @@ export function useFlowDiagram({
         return updated;
       });
     },
-    [updateYaml, handleDataFlowLabelChange, handleDataFlowDirectionChange, threatModelRef, setEdges, setThreatModel],
+    [updateYaml, handleDataFlowLabelChange, handleDataFlowDirectionChange, handleToggleDirectionAndReverse, threatModelRef, setEdges, setThreatModel],
   );
 
   return {

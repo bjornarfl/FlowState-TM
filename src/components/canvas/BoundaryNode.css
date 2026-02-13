@@ -3,16 +3,15 @@
 .boundary-node {
   width: 100%;
   height: 100%;
-  border: 2px dashed #dc2626;
+  border: 2px dashed var(--entity-boundaries-border);
   background: transparent;
   position: relative;
   cursor: move;
-  pointer-events: none;
 }
 
 /* Darker border when selected */
 .react-flow__node.selected .boundary-node {
-  border-color: #991b1b;
+  border-color: var(--entity-boundaries-text);
   border-width: 2px;
 }
 
@@ -21,7 +20,6 @@
   top: 2px;
   left: 2px;
   z-index: 10;
-  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -30,7 +28,7 @@
 .boundary-label {
   font-weight: 600;
   font-size: 11px;
-  color: #dc2626;
+  color: var(--entity-boundaries-border);
   background: transparent;
   padding: 2px 4px;
   border-radius: 3px;
@@ -48,7 +46,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #dc2626;
+  color: var(--entity-boundaries-border);
   transition: opacity 0.15s ease;
   padding: 0;
   opacity: 0;
@@ -71,10 +69,10 @@
 .boundary-label-input {
   font-weight: 600;
   font-size: 11px;
-  color: #dc2626;
+  color: var(--entity-boundaries-border);
   background: var(--bg-primary, #fff);
   padding: 2px 4px;
-  border: 2px solid #dc2626;
+  border: 2px solid var(--entity-boundaries-border);
   border-radius: 3px;
   font-family: inherit;
   min-width: 80px;
@@ -82,16 +80,7 @@
 
 .boundary-label-input:focus {
   outline: none;
-  box-shadow: 0 0 4px rgba(220, 38, 38, 0.3);
-}
-
-/* Ensure boundary nodes are selectable but allow child nodes to be interactive */
-.react-flow__node-boundaryNode {
-  pointer-events: all;
-}
-
-.react-flow__node-boundaryNode .react-flow__node {
-  pointer-events: all;
+  box-shadow: 0 0 4px var(--entity-boundaries-bg);
 }
 
 /* Note: Manual resizing can be enabled by setting resizable property on the node.
@@ -103,7 +92,7 @@
   height: 14px !important;
   border-radius: 3px !important;
   background: var(--bg-primary, #fff) !important;
-  border: 2px solid #dc2626 !important;
+  border: 2px solid var(--entity-boundaries-border) !important;
   opacity: 0.9 !important;
   transition: all 0.15s ease !important;
 }
@@ -112,7 +101,7 @@
   opacity: 1 !important;
   background: var(--bg-primary, #fff) !important;
   transform: scale(1.2);
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3) !important;
+  box-shadow: 0 2px 8px var(--entity-boundaries-bg) !important;
 }
 
 /* Hide the resize lines - just use the handles */

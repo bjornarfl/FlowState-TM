@@ -1,7 +1,13 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
+import { Info } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, DragStartEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 import EditableCell from './EditableCell';
 import EditableTextarea from './EditableTextarea';
+import SortableTableRow from './SortableTableRow';
 import type { ThreatModel } from '../../types/threatModel';
+import { isAssetNamePlaceholder } from '../../utils/refGenerators';
 
 interface AssetsTableProps {
   threatModel: ThreatModel | null;
@@ -9,6 +15,7 @@ interface AssetsTableProps {
   onAssetDescriptionChange: (ref: string, newDescription: string) => void;
   onRemoveAsset: (ref: string) => void;
   onAddAsset: () => void;
+  onReorderAssets: (newOrder: string[]) => void;
   onNavigateToNextTable?: (column: 'name' | 'description') => void;
   onNavigateToPreviousTable?: (column: 'name' | 'description') => void;
 }
@@ -23,24 +30,49 @@ const AssetsTable = React.memo(forwardRef<AssetsTableRef, AssetsTableProps>(func
   onAssetDescriptionChange,
   onRemoveAsset,
   onAddAsset,
+  onReorderAssets,
   onNavigateToNextTable,
   onNavigateToPreviousTable,
 }, ref): React.JSX.Element {
   const cellRefs = useRef<Map<string, HTMLElement>>(new Map());
   const shouldFocusNewAsset = useRef(false);
   const previousAssetCount = useRef(threatModel?.assets?.length || 0);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Expose methods to parent via ref
-  useImperativeHandle(ref, () => ({
-    focusCellByColumn: (column: 'name' | 'description', rowIndex: number = 0) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent): void => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent): void => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
       const assets = threatModel?.assets || [];
-      if (assets.length > 0) {
-        const targetIndex = Math.min(rowIndex, assets.length - 1);
-        const cellKey = `${assets[targetIndex].ref}-${column}`;
-        focusCell(cellKey);
+      const oldIndex = assets.findIndex((asset) => asset.ref === active.id);
+      const newIndex = assets.findIndex((asset) => asset.ref === over.id);
+
+      const newOrder = arrayMove(assets, oldIndex, newIndex).map((asset) => asset.ref);
+      onReorderAssets(newOrder);
+    }
+    setActiveId(null);
+  };
+
+  const focusCellInternal = (cellKey: string): void => {
+    const cell = cellRefs.current.get(cellKey);
+    if (cell) {
+      const input = cell.querySelector('input, textarea');
+      if (input) {
+        (input as HTMLElement).focus();
       }
-    },
-  }));
+    }
+  };
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -49,7 +81,8 @@ const AssetsTable = React.memo(forwardRef<AssetsTableRef, AssetsTableProps>(func
       if (assets.length > 0) {
         const targetIndex = Math.min(rowIndex, assets.length - 1);
         const cellKey = `${assets[targetIndex].ref}-${column}`;
-        focusCell(cellKey);
+        // Focus after a brief delay to ensure rendering completes
+        setTimeout(() => focusCellInternal(cellKey), 50);
       }
     },
   }));
@@ -64,7 +97,7 @@ const AssetsTable = React.memo(forwardRef<AssetsTableRef, AssetsTableProps>(func
       const lastAsset = assets[assets.length - 1];
       if (lastAsset) {
         setTimeout(() => {
-          focusCell(`${lastAsset.ref}-name`);
+          focusCellInternal(`${lastAsset.ref}-name`);
           shouldFocusNewAsset.current = false;
         }, 50);
       }
@@ -72,16 +105,6 @@ const AssetsTable = React.memo(forwardRef<AssetsTableRef, AssetsTableProps>(func
     
     previousAssetCount.current = currentAssetCount;
   }, [threatModel?.assets]);
-
-  const focusCell = (cellKey: string): void => {
-    const cell = cellRefs.current.get(cellKey);
-    if (cell) {
-      const input = cell.querySelector('input, textarea');
-      if (input) {
-        (input as HTMLElement).focus();
-      }
-    }
-  };
 
   const handleTabPress = (assetRef: string, cellType: 'name' | 'description', shiftKey: boolean): void => {
     const assets = threatModel?.assets || [];
@@ -121,7 +144,7 @@ const AssetsTable = React.memo(forwardRef<AssetsTableRef, AssetsTableProps>(func
     }
 
     if (nextCellKey) {
-      focusCell(nextCellKey);
+      focusCellInternal(nextCellKey);
     }
   };
 
@@ -176,68 +199,113 @@ const AssetsTable = React.memo(forwardRef<AssetsTableRef, AssetsTableProps>(func
     }
 
     if (nextCellKey) {
-      focusCell(nextCellKey);
+      focusCellInternal(nextCellKey);
     }
   };
 
   return (
-    <div className="table-container">
-      <h3>Data Assets</h3>
-      <h4>Data or resources that need protection</h4>
-      {threatModel?.assets && threatModel.assets.length > 0 && (
-        <table>
-          <colgroup>
-            <col style={{ width: '25%' }} />
-            <col style={{ width: 'auto' }} />
-            <col style={{ width: '20px' }} />
-          </colgroup>
-          <thead className="header-assets">
-            <tr>
-              <th>Name</th>
-              <th>Description</th>
-              <th className="action-column"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {threatModel.assets.map((asset) => (
-              <tr key={asset.ref}>
-                <td ref={(el) => { if (el) cellRefs.current.set(`${asset.ref}-name`, el); }}>
-                  <EditableCell
-                    value={asset.name}
-                    onSave={(newName) => onAssetNameChange(asset.ref, newName)}
-                    onTabPress={(shiftKey) => handleTabPress(asset.ref, 'name', shiftKey)}
-                    onNavigate={(direction) => handleNavigate(asset.ref, 'name', direction)}
-                  />
-                </td>
-                <td ref={(el) => { if (el) cellRefs.current.set(`${asset.ref}-description`, el); }}>
-                  <EditableTextarea
-                    value={asset.description || ''}
-                    onSave={(newDescription) => onAssetDescriptionChange(asset.ref, newDescription)}
-                    onTabPress={(shiftKey) => handleTabPress(asset.ref, 'description', shiftKey)}
-                    onNavigate={(direction) => handleNavigate(asset.ref, 'description', direction)}
-                  />
-                </td>
-                <td className="action-column">
-                  <button
-                    className="row-action-button remove-button"
-                    onClick={() => onRemoveAsset(asset.ref)}
-                    title="Remove asset"
-                  >
-                    ×
-                  </button>
-                </td>
+    <div className="table-section">
+      <div className="table-header">
+        <span>Assets</span>
+        <span className="header-help-icon" data-tooltip='Data or resources that needs protection.'>
+          <Info size={16} />
+        </span>
+      </div>
+      <div className="table-content">
+          <div className={`table-container ${activeId ? 'dragging' : ''}`}>
+            {threatModel?.assets && threatModel.assets.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <table>
+            <colgroup>
+              <col style={{ width: '0px' }} />
+              <col style={{ width: '25%' }} />
+              <col style={{ width: 'auto' }} />
+              <col style={{ width: '35px' }} />
+            </colgroup>
+            <thead className="header-assets">
+              <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Description</th>
+                <th className="action-column"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <SortableContext
+              items={threatModel.assets.map((asset) => asset.ref)}
+              strategy={verticalListSortingStrategy}
+            >
+              <tbody>
+                {threatModel.assets.map((asset) => (
+                  <SortableTableRow key={asset.ref} id={asset.ref}>
+                    <td ref={(el) => { if (el) cellRefs.current.set(`${asset.ref}-name`, el); }}>
+                      <EditableCell
+                        value={asset.name}
+                        placeholder={isAssetNamePlaceholder(asset.name) ? asset.name : undefined}
+                        onSave={(newName) => onAssetNameChange(asset.ref, newName)}
+                        onTabPress={(shiftKey) => handleTabPress(asset.ref, 'name', shiftKey)}
+                        onNavigate={(direction) => handleNavigate(asset.ref, 'name', direction)}
+                      />
+                    </td>
+                    <td ref={(el) => { if (el) cellRefs.current.set(`${asset.ref}-description`, el); }}>
+                      <EditableTextarea
+                        value={asset.description || ''}
+                        onSave={(newDescription) => onAssetDescriptionChange(asset.ref, newDescription)}
+                        onTabPress={(shiftKey) => handleTabPress(asset.ref, 'description', shiftKey)}
+                        onNavigate={(direction) => handleNavigate(asset.ref, 'description', direction)}
+                      />
+                    </td>
+                    <td className="action-column">
+                      <button
+                        className="row-action-button remove-button"
+                        onClick={() => onRemoveAsset(asset.ref)}
+                        title="Remove asset"
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </SortableTableRow>
+                ))}
+              </tbody>
+            </SortableContext>
+          </table>
+          <DragOverlay>
+            {activeId ? (
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '4px',
+                  padding: '8px 12px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                  cursor: 'grabbing',
+                  minHeight: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <div style={{ marginRight: '8px', opacity: 0.5 }}>⋮⋮</div>
+                <span>
+                  {threatModel?.assets?.find((a) => a.ref === activeId)?.name || 'Asset'}
+                </span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
-      <button
-        className="add-row-button add-row-assets"
-        onClick={onAddAsset}
-        title="Add asset"
-      >
-        + Add Asset
-      </button>
+            <button
+              className="add-row-button add-row-assets"
+              onClick={onAddAsset}
+              title="Add asset"
+            >
+              + Add Asset
+            </button>
+          </div>
+        </div>
     </div>
   );
 }));

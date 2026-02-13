@@ -20,7 +20,7 @@ th.control-items-th {
   outline: none;
 }
 
-.multi-picker-cell:focus {
+.multi-picker-cell:focus:has(.multi-picker-summary) {
   outline: 1px solid var(--accent-blue, #007acc);
   outline-offset: -2px;
   border-radius: 3px;
@@ -35,15 +35,47 @@ th.control-items-th {
   min-height: 24px;
   cursor: pointer;
   border-radius: 3px;
-  transition: background-color 0.2s;
 }
 
-.multi-picker-compact:hover {
+.multi-picker-compact:has(.multi-picker-summary):hover {
   background-color: var(--bg-hover, #f0f0f0);
+}
+
+/* Disable hover during drag */
+.dragging .multi-picker-compact:has(.multi-picker-summary):hover {
+  background-color: transparent;
 }
 
 .no-items-text {
   color: var(--text-muted, #999);
+}
+
+.multi-picker-empty-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--text-primary);
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  transition: all 0.15s;
+}
+
+.multi-picker-empty-button:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  background-color: var(--bg-hover, #f0f0f0);
+}
+
+/* Disable hover during drag */
+.dragging .multi-picker-empty-button:hover {
+  box-shadow: none;
+  background-color: transparent;
+}
+
+.multi-picker-cell:focus .multi-picker-empty-button {
+  box-shadow: 0 0 0 1px var(--accent-blue, #3b82f6);
 }
 
 .multi-picker-summary {
@@ -75,47 +107,28 @@ th.control-items-th {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-/* Badge colors - light mode */
+/* Badge colors */
 .badge-components {
-  background-color: #e9d5ff;
-  color: #6b21a8;
+  background-color: var(--entity-components-bg);
+  color: var(--entity-components-text);
 }
 
 .badge-dataflows {
-  background-color: #bfdbfe;
-  color: #1e3a8a;
+  background-color: var(--entity-dataflows-bg);
+  color: var(--entity-dataflows-text);
 }
 
 .badge-assets {
-  background-color: #fef08a;
-  color: #854d0e;
+  background-color: var(--entity-assets-bg);
+  color: var(--entity-assets-text);
 }
 
 .badge-threats {
-  background-color: #fecaca;
-  color: #7f1d1d;
+  background-color: var(--entity-threats-bg);
+  color: var(--entity-threats-text);
 }
 
-/* Badge colors - dark mode */
-[data-theme="dark"] .badge-components {
-  background-color: #6b21a8;
-  color: #e9d5ff;
-}
-
-[data-theme="dark"] .badge-dataflows {
-  background-color: #1e3a8a;
-  color: #bfdbfe;
-}
-
-[data-theme="dark"] .badge-assets {
-  background-color: #854d0e;
-  color: #fef08a;
-}
-
-[data-theme="dark"] .badge-threats {
-  background-color: #7f1d1d;
-  color: #fecaca;
-}
+/* No separate dark mode rules needed - entity variables handle theming */
 
 /* Expanded Panel */
 .multi-picker-expanded {
@@ -144,11 +157,11 @@ th.control-items-th {
 
 /* Theme-specific borders and colors */
 .multi-picker-theme-threats {
-  border: 2px solid #dc2626;
+  border: 2px solid var(--entity-threats-border);
 }
 
 .multi-picker-theme-controls {
-  border: 2px solid #15803d;
+  border: 2px solid var(--entity-controls-border);
 }
 
 .multi-picker-expanded.render-upward {
@@ -187,11 +200,11 @@ th.control-items-th {
 
 /* Theme-specific title colors */
 .multi-picker-theme-threats .multi-picker-title {
-  color: #dc2626;
+  color: var(--entity-threats-border);
 }
 
 .multi-picker-theme-controls .multi-picker-title {
-  color: #15803d;
+  color: var(--entity-controls-border);
 }
 
 .multi-picker-close {
@@ -210,23 +223,23 @@ th.control-items-th {
 
 /* Theme-specific close button colors */
 .multi-picker-theme-threats .multi-picker-close {
-  background: #fecaca;
-  color: #7f1d1d;
+  background: var(--entity-threats-bg);
+  color: var(--entity-threats-text);
 }
 
 .multi-picker-theme-threats .multi-picker-close:hover {
-  background: #dc2626;
-  color: white;
+  background: var(--entity-threats-text);
+  color: var(--entity-threats-bg);
 }
 
 .multi-picker-theme-controls .multi-picker-close {
-  background: #bbf7d0;
-  color: #15803d;
+  background: var(--entity-controls-bg);
+  color: var(--entity-controls-text);
 }
 
 .multi-picker-theme-controls .multi-picker-close:hover {
-  background: #15803d;
-  color: white;
+  background: var(--entity-controls-text);
+  color: var(--entity-controls-bg);
 }
 
 /* Sections */

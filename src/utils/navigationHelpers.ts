@@ -169,3 +169,111 @@ export function findClosestNodeInDirection(
   const result = findClosestInDirection(currentX, currentY, direction, items, options);
   return result?.node || null;
 }
+
+/**
+ * Find an unoccupied position near the target position
+ * Checks if any existing node is too close and applies an offset if needed
+ * Uses rectangular collision detection to account for node dimensions
+ * 
+ * @param targetX - Desired X coordinate
+ * @param targetY - Desired Y coordinate
+ * @param nodes - Array of existing nodes to check against
+ * @param nodeWidth - Width of the node being placed (default: 140)
+ * @param nodeHeight - Height of the node being placed (default: 80)
+ * @param marginX - Minimum horizontal distance between nodes (default: 30)
+ * @param marginY - Minimum vertical distance between nodes (default: 30)
+ * @returns An unoccupied position near the target
+ */
+export function findUnoccupiedPosition(
+  targetX: number,
+  targetY: number,
+  nodes: any[],
+  nodeWidth: number = 140,
+  nodeHeight: number = 80,
+  marginX: number = -10,
+  marginY: number = -20
+): { x: number; y: number } {
+  // Collision padding: positive = require gap, 0 = allow touching, negative = allow overlap
+  // This directly adjusts the collision box size
+  const collisionPaddingX = -20;
+  const collisionPaddingY = -20;
+  // Calculate offset steps based on actual dimensions and margins
+  // Horizontal step needs to account for node width + margins
+  const offsetStepX = nodeWidth + marginX * 2;
+  // Vertical step - use a smaller multiplier for tighter vertical spacing
+  const offsetStepY = nodeHeight + marginY * 2;
+  
+  let x = targetX;
+  let y = targetY;
+  const maxAttempts = 21; // Prevent infinite loops
+  
+  // Simple offset pattern: try positions in a grid pattern radiating from center
+  // Prefer vertical (down/up) over horizontal (left/right)
+  const offsets: [number, number][] = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+    [-1, 1],
+    [-1, 0],
+    [-1, -1],
+    [0, -1],
+    [1, -1],
+    [1, 2],
+    [0, 2],
+    [-1, 2],
+    [-1, -2],
+    [0, -2],
+    [1, -2],
+    [1, 3],
+    [0, 3],
+    [-1, 3],
+    [-1, -3],
+    [0, -3],
+    [1, -3], 
+  ];
+  
+  for (let i = 0; i < offsets.length && i < maxAttempts; i++) {
+    x = targetX + offsets[i][0] * offsetStepX;
+    y = targetY + offsets[i][1] * offsetStepY;
+    
+    // Check if any node overlaps with this position using AABB collision detection
+    const hasCollision = nodes.some(node => {
+      // Skip boundary nodes - components are meant to overlap/be contained by boundaries
+      if (node.type === 'boundaryNode') {
+        return false;
+      }
+      
+      // Get dimensions of existing node (with fallbacks for components and boundaries)
+      const existingWidth = node.style?.width || (node.type === 'boundaryNode' ? 150 : 140);
+      const existingHeight = node.style?.height || (node.type === 'boundaryNode' ? 75 : 80);
+      
+      const newNodeLeft = x - collisionPaddingX;
+      const newNodeRight = x + nodeWidth + collisionPaddingX;
+      const newNodeTop = y - collisionPaddingY;
+      const newNodeBottom = y + nodeHeight + collisionPaddingY;
+      
+      const existingNodeLeft = node.position.x - collisionPaddingX;
+      const existingNodeRight = node.position.x + existingWidth + collisionPaddingX;
+      const existingNodeTop = node.position.y - collisionPaddingY;
+      const existingNodeBottom = node.position.y + existingHeight + collisionPaddingY;
+      
+      // Standard AABB overlap check
+      const overlapsX = newNodeLeft < existingNodeRight && newNodeRight > existingNodeLeft;
+      const overlapsY = newNodeTop < existingNodeBottom && newNodeBottom > existingNodeTop;
+
+      return overlapsX && overlapsY;
+    });
+    
+    if (!hasCollision) {
+      // Found an unoccupied position
+      return { x, y };
+    }
+  }
+  
+  // If we couldn't find a spot, just use the original position
+
+  x = targetX;
+  y = targetY;
+  return { x, y };
+}

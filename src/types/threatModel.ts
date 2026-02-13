@@ -50,7 +50,12 @@ export interface Threat {
   affected_components?: string[];
   affected_data_flows?: string[];
   affected_assets?: string[];
+  status?: ThreatStatus;
+  status_link?: string;
+  status_note?: string;
 }
+
+export type ThreatStatus = 'Mitigate' | 'Accept' | 'Dismiss' | 'Evaluate';
 
 export type ControlStatus = 'To Do' | 'In Progress' | 'Done' | 'Cancelled';
 
@@ -69,6 +74,7 @@ export interface ThreatModel {
   schema_version: string;
   name: string;
   description?: string;
+  participants?: string[];
   assets?: Asset[];
   components: Component[];
   data_flows?: DataFlow[];

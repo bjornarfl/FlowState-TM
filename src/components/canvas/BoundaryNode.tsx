@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 // @ts-ignore - NodeResizer is available but type declarations may not be properly loaded
 import { NodeResizer } from '@xyflow/react';
+import { isBoundaryNamePlaceholder } from '../../utils/refGenerators';
 import './BoundaryNode.css';
 
 export interface BoundaryNodeData {
@@ -21,7 +22,8 @@ export default function BoundaryNode({ data, selected }: { data: BoundaryNodeDat
   const { label, initialEditMode, onNameChange, onEditModeChange, onResizeEnd } = data;
   const [isEditing, setIsEditing] = useState(initialEditMode || false);
   const [isHovering, setIsHovering] = useState(false);
-  const [editValue, setEditValue] = useState(label);
+  const isPlaceholder = isBoundaryNamePlaceholder(label);
+  const [editValue, setEditValue] = useState(isPlaceholder ? '' : label);
   const hasProcessedInitialEditMode = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -52,24 +54,36 @@ export default function BoundaryNode({ data, selected }: { data: BoundaryNodeDat
   }, [isEditing, initialEditMode]);
 
   const handleEditClick = (e: React.MouseEvent): void => {
+    // Don't enter edit mode during multi-selection
+    if (e.metaKey || e.ctrlKey) return;
+    
     e.stopPropagation();
+    const isPlaceholder = isBoundaryNamePlaceholder(label);
+    setEditValue(isPlaceholder ? '' : label);
     setIsEditing(true);
-    setEditValue(label);
     onEditModeChange?.(true);
   };
 
   const handleDoubleClick = (e: React.MouseEvent): void => {
-    e.stopPropagation();
+    // Don't enter edit mode during multi-selection
+    if (e.metaKey || e.ctrlKey) return;
+    
+    // Prevent text selection but don't stop propagation
+    e.preventDefault();
     if (!isEditing) {
+      const isPlaceholder = isBoundaryNamePlaceholder(label);
+      setEditValue(isPlaceholder ? '' : label);
       setIsEditing(true);
-      setEditValue(label);
       onEditModeChange?.(true);
     }
   };
 
   const handleSave = (): void => {
-    if (editValue.trim() && editValue !== label) {
-      onNameChange?.(editValue);
+    const isPlaceholder = isBoundaryNamePlaceholder(label);
+    const newValueToSave = editValue.trim() ? editValue : label;
+    
+    if (newValueToSave !== label) {
+      onNameChange?.(newValueToSave);
     }
     setIsEditing(false);
     onEditModeChange?.(false);
@@ -110,13 +124,14 @@ export default function BoundaryNode({ data, selected }: { data: BoundaryNodeDat
         onMouseLeave={() => setIsHovering(false)}
         onDoubleClick={handleDoubleClick}
       >
-        <div className="boundary-label-container">
+        <div className="boundary-label-container noDrag">
           {isEditing ? (
             <input
               ref={inputRef}
               type="text"
               className="boundary-label-input"
               value={editValue}
+              placeholder={isPlaceholder ? label : undefined}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={handleKeyDown}
               onBlur={handleSave}
@@ -125,13 +140,14 @@ export default function BoundaryNode({ data, selected }: { data: BoundaryNodeDat
             />
           ) : (
             <>
-              <div className="boundary-label">
+              <div className="boundary-label noDrag">
                 {label}
               </div>
               {/* Edit button - always present to prevent layout shift */}
               <button 
-                className={`boundary-edit-button${isHovering ? ' visible' : ''}`}
+                className={`boundary-edit-button${isHovering ? ' visible' : ''} noDrag`}
                 onClick={handleEditClick}
+                onMouseDown={(e) => e.stopPropagation()}
                 title="Edit boundary"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

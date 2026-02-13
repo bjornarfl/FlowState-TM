@@ -6,6 +6,7 @@ export interface DropdownItem {
   label: string;
   onClick: () => void;
   icon?: React.ReactNode;
+  shortcut?: string;
 }
 
 interface NavbarDropdownProps {
@@ -44,6 +45,7 @@ export function NavbarDropdown({ trigger, items, title }: NavbarDropdownProps): 
             >
               {item.icon && <span className="navbar-dropdown-icon">{item.icon}</span>}
               <span>{item.label}</span>
+              {item.shortcut && <span className="navbar-dropdown-shortcut">{item.shortcut}</span>}
             </button>
           ))}
         </div>

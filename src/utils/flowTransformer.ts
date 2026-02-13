@@ -28,6 +28,7 @@ export interface ThreatModelNodeData {
   onDescriptionChange?: (newDescription: string) => void;
   onAssetsChange?: (newAssets: string[]) => void;
   onCreateAsset?: (name: string) => string | Promise<string>;
+  onSelectNode?: () => void;
 }
 
 export interface EditableEdgeData {
@@ -155,7 +156,6 @@ export function transformBoundaries(
       id: boundary.ref,
       type: 'boundaryNode',
       position,
-      draggable: true,
       selectable: true,
       style: {
         width: size.width,

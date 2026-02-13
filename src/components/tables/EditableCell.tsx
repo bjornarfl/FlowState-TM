@@ -7,6 +7,7 @@ interface EditableCellProps {
   allowEmpty?: boolean;
   onTabPress?: (shiftKey: boolean) => void;
   onNavigate?: (direction: 'up' | 'down' | 'left' | 'right') => void;
+  placeholder?: string;
 }
 
 const EditableCell = forwardRef<HTMLTextAreaElement, EditableCellProps>(({ 
@@ -14,9 +15,11 @@ const EditableCell = forwardRef<HTMLTextAreaElement, EditableCellProps>(({
   onSave, 
   allowEmpty = false,
   onTabPress,
-  onNavigate
+  onNavigate,
+  placeholder
 }, ref) => {
-  const [editValue, setEditValue] = React.useState(value);
+  const isPlaceholder = placeholder && value === placeholder;
+  const [editValue, setEditValue] = React.useState(isPlaceholder ? '' : value);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Expose the textarea ref to parent components
@@ -24,8 +27,9 @@ const EditableCell = forwardRef<HTMLTextAreaElement, EditableCellProps>(({
 
   // Update internal state when value prop changes
   useEffect(() => {
-    setEditValue(value);
-  }, [value]);
+    const isPlaceholder = placeholder && value === placeholder;
+    setEditValue(isPlaceholder ? '' : value);
+  }, [value, placeholder]);
 
   // Auto-resize textarea as content changes
   useEffect(() => {
@@ -50,13 +54,16 @@ const EditableCell = forwardRef<HTMLTextAreaElement, EditableCellProps>(({
   }, []);
 
   const handleSave = (): void => {
+    const currentIsPlaceholder = placeholder && value === placeholder;
+    const newValueToSave = editValue.trim() ? editValue : (placeholder || '');
+    
     if (allowEmpty || editValue.trim()) {
-      if (onSave && editValue !== value) {
-        onSave(editValue);
+      if (onSave && newValueToSave !== value) {
+        onSave(newValueToSave);
       }
     } else {
-      // Reset to original value if empty and not allowed
-      setEditValue(value);
+      // Reset to empty if it was a placeholder, otherwise keep original value
+      setEditValue(currentIsPlaceholder ? '' : value);
     }
   };
 
@@ -125,6 +132,7 @@ const EditableCell = forwardRef<HTMLTextAreaElement, EditableCellProps>(({
       ref={textareaRef}
       className="always-editable-cell-input"
       value={editValue}
+      placeholder={placeholder}
       onChange={(e) => setEditValue(e.target.value)}
       onKeyDown={handleKeyDown}
       onBlur={handleSave}

@@ -19,7 +19,7 @@ import './FileBrowser.css';
 
 interface FileBrowserProps {
   source: SourceType;
-  onFileSelect: (file: File | { name: string; content: string }, fileHandle?: FileSystemFileHandle | null) => void;
+  onFileSelect: (file: File | { name: string; content: string }, fileHandle?: FileSystemFileHandle | null, browserModelId?: string) => void;
   onBack: () => void;
   isDarkMode: boolean;
   onDarkModeChange: (isDarkMode: boolean) => void;
@@ -116,11 +116,11 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
       if (onMetadataLoad) {
         onMetadataLoad(savedModel.githubMetadata);
       }
-      // Pass null for file handle to clear any existing handle
+      // Pass null for file handle to clear any existing handle, and pass model ID
       onFileSelect({
         name: savedModel.name,
         content: savedModel.content,
-      }, null);
+      }, null, savedModel.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load model');
       setLoading(false);

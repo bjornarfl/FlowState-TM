@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import ThreatModelEditor from './components/ThreatModelEditor';
 import GitHubFileLoader from './components/integrations/github/GitHubFileLoader';
 import { ToastProvider } from './contexts/ToastContext';
+import { SaveStateProvider } from './contexts/SaveStateContext';
 import ToastContainer from './components/toast/ToastContainer';
 import { migrateFromLocalStorage } from './utils/browserStorage';
 import './App.css';
@@ -49,11 +50,13 @@ export default function App(): React.JSX.Element {
 
   return (
     <ToastProvider>
-      <ToastContainer />
-      <Routes>
-        <Route path="/" element={<ThreatModelEditor />} />
-        <Route path="/github/:owner/:repo/:filename" element={<GitHubFileLoader />} />
-      </Routes>
+      <SaveStateProvider>
+        <ToastContainer />
+        <Routes>
+          <Route path="/" element={<ThreatModelEditor />} />
+          <Route path="/github/:owner/:repo/:filename" element={<GitHubFileLoader />} />
+        </Routes>
+      </SaveStateProvider>
     </ToastProvider>
   );
 }

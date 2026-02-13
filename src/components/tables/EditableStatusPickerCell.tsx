@@ -1,55 +1,85 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ExternalLink, ListTodo, Ellipsis, Check, X, Plus, Github } from 'lucide-react';
-import { ControlStatus, Control, ThreatModel } from '../../types/threatModel';
+import { ExternalLink, ListTodo, Ellipsis, Check, X, Plus, Github, Lock, Activity, ShieldOff, SearchAlert } from 'lucide-react';
+import { ControlStatus, ThreatStatus, Control, Threat, ThreatModel } from '../../types/threatModel';
 import { GitHubMetadata } from '../integrations/github/types';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { usePortalPosition } from '../../hooks/usePortalPosition';
 import { generateGitHubIssueUrl } from '../../utils/githubIssueGenerator';
 import './EditableStatusPickerCell.css';
 
-interface StatusOption {
-  value: ControlStatus;
+interface StatusOption<T extends string> {
+  value: T;
   label: string;
   color: string;
   icon: React.ComponentType<{ size: number }>;
+  tooltip: string;
 }
 
-const STATUS_OPTIONS: StatusOption[] = [
-  { value: 'To Do', label: 'To Do', color: 'gray', icon: Ellipsis },
-  { value: 'In Progress', label: 'In Progress', color: 'blue', icon: ListTodo },
-  { value: 'Done', label: 'Done', color: 'green', icon: Check },
-  { value: 'Cancelled', label: 'Cancelled', color: 'red', icon: X },
+const CONTROL_STATUS_OPTIONS: StatusOption<ControlStatus>[] = [
+  { value: 'To Do', label: 'To Do', color: 'gray', icon: Ellipsis, tooltip: 'Control has been identified but work has not started' },
+  { value: 'In Progress', label: 'In Progress', color: 'blue', icon: ListTodo, tooltip: 'Control is currently being implemented' },
+  { value: 'Done', label: 'Done', color: 'green', icon: Check, tooltip: 'Control has been fully implemented and verified' },
+  { value: 'Cancelled', label: 'Cancelled', color: 'red', icon: X, tooltip: 'Control will not be implemented' },
 ];
 
-interface EditableStatusPickerCellProps {
-  control: Control;
-  threatModel: ThreatModel;
-  githubMetadata?: GitHubMetadata;
-  onStatusChange?: (newStatus: ControlStatus | undefined) => void;
-  onStatusLinkChange?: (newLink: string | undefined) => void;
-  onStatusNoteChange?: (newNote: string | undefined) => void;
-  onTabPress?: (shiftKey: boolean) => void;
-  onNavigate?: (direction: 'up' | 'down' | 'left' | 'right') => void;
-}
+const THREAT_STATUS_OPTIONS: StatusOption<ThreatStatus>[] = [
+  { value: 'Evaluate', label: 'Evaluate', color: 'blue', icon: SearchAlert, tooltip: 'Threat requires further analysis and evaluation' },
+  { value: 'Mitigate', label: 'Mitigate', color: 'green', icon: Lock, tooltip: 'Threat will be mitigated with controls' },
+  { value: 'Accept', label: 'Accept', color: 'yellow', icon: Activity, tooltip: 'Threat is accepted as a known risk' },
+  { value: 'Dismiss', label: 'Dismiss', color: 'gray', icon: ShieldOff, tooltip: 'Threat is not applicable to this system' },
+];
+
+type EditableStatusPickerCellProps =
+  | {
+      entityType: 'control';
+      entity: Control;
+      threatModel: ThreatModel;
+      githubMetadata?: GitHubMetadata;
+      onStatusChange?: (newStatus: ControlStatus | undefined) => void;
+      onStatusLinkChange?: (newLink: string | undefined) => void;
+      onStatusNoteChange?: (newNote: string | undefined) => void;
+      onTabPress?: (shiftKey: boolean) => void;
+      onNavigate?: (direction: 'up' | 'down' | 'left' | 'right') => void;
+    }
+  | {
+      entityType: 'threat';
+      entity: Threat;
+      threatModel: ThreatModel;
+      githubMetadata?: GitHubMetadata;
+      onStatusChange?: (newStatus: ThreatStatus | undefined) => void;
+      onStatusLinkChange?: (newLink: string | undefined) => void;
+      onStatusNoteChange?: (newNote: string | undefined) => void;
+      onTabPress?: (shiftKey: boolean) => void;
+      onNavigate?: (direction: 'up' | 'down' | 'left' | 'right') => void;
+    };
 
 /**
  * Editable status cell that displays status and link in a vertical stack.
  * Opens a portal editor for changing both values.
+ * Supports both Control and Threat entities with different status options.
  */
-export default function EditableStatusPickerCell({
-  control,
-  threatModel,
-  githubMetadata,
-  onStatusChange,
-  onStatusLinkChange,
-  onStatusNoteChange,
-  onTabPress,
-  onNavigate,
-}: EditableStatusPickerCellProps): React.JSX.Element {
-  const { status, status_link: statusLink, status_note: statusNote } = control;
+export default function EditableStatusPickerCell(
+  props: EditableStatusPickerCellProps
+): React.JSX.Element {
+  const {
+    entityType,
+    entity,
+    threatModel,
+    githubMetadata,
+    onStatusChange,
+    onStatusLinkChange,
+    onStatusNoteChange,
+    onTabPress,
+    onNavigate,
+  } = props;
+
+  const { status, status_link: statusLink, status_note: statusNote } = entity;
+  const STATUS_OPTIONS = entityType === 'control' ? CONTROL_STATUS_OPTIONS : THREAT_STATUS_OPTIONS;
+  const variantClass = entityType === 'control' ? 'status-picker-controls' : 'status-picker-threats';
+  
   const [isOpen, setIsOpen] = useState(false);
-  const [tempStatus, setTempStatus] = useState<ControlStatus | undefined>(status);
+  const [tempStatus, setTempStatus] = useState<ControlStatus | ThreatStatus | undefined>(status);
   const [tempLink, setTempLink] = useState<string>(statusLink || '');
   const [tempNote, setTempNote] = useState<string>(statusNote || '');
   const [linkError, setLinkError] = useState<string>('');
@@ -63,7 +93,9 @@ export default function EditableStatusPickerCell({
   const clearStatusButtonRef = useRef<HTMLButtonElement>(null);
 
   // Generate GitHub issue URL if configured
-  const githubIssueUrl = generateGitHubIssueUrl({ control, threatModel, metadata: githubMetadata });
+  const githubIssueUrl = entityType === 'control' 
+    ? generateGitHubIssueUrl({ control: entity, threatModel, metadata: githubMetadata })
+    : generateGitHubIssueUrl({ threat: entity, threatModel, metadata: githubMetadata });
 
   // Calculate portal position with improved horizontal and vertical positioning
   const position = usePortalPosition(isOpen, cellRef, {
@@ -112,7 +144,11 @@ export default function EditableStatusPickerCell({
     
     // Save changes on close
     if (tempStatus !== status) {
-      onStatusChange?.(tempStatus);
+      if (entityType === 'control') {
+        (onStatusChange as ((newStatus: ControlStatus | undefined) => void) | undefined)?.(tempStatus as ControlStatus | undefined);
+      } else {
+        (onStatusChange as ((newStatus: ThreatStatus | undefined) => void) | undefined)?.(tempStatus as ThreatStatus | undefined);
+      }
     }
     if (tempLink !== (statusLink || '')) {
       onStatusLinkChange?.(tempLink || undefined);
@@ -241,15 +277,19 @@ export default function EditableStatusPickerCell({
     }
   }, isOpen);
 
-  const handleStatusSelect = (newStatus: ControlStatus): void => {
+  const handleStatusSelect = (newStatus: ControlStatus | ThreatStatus): void => {
     setTempStatus(newStatus);
-    onStatusChange?.(newStatus);
+    if (entityType === 'control') {
+      (onStatusChange as ((newStatus: ControlStatus | undefined) => void) | undefined)?.(newStatus as ControlStatus);
+    } else {
+      (onStatusChange as ((newStatus: ThreatStatus | undefined) => void) | undefined)?.(newStatus as ThreatStatus);
+    }
   };
 
   const handleClearStatus = (): void => {
     setTempStatus(undefined);
     onStatusChange?.(undefined);
-    // After clearing, focus the first status button (To Do)
+    // After clearing, focus the first status button
     setTimeout(() => {
       statusButtonRefs.current.get(0)?.focus();
     }, 0);
@@ -270,11 +310,11 @@ export default function EditableStatusPickerCell({
     }
   };
 
-  const getStatusColor = (statusValue?: ControlStatus): string => {
+  const getStatusColor = (statusValue?: ControlStatus | ThreatStatus): string => {
     return STATUS_OPTIONS.find(opt => opt.value === statusValue)?.color || 'gray';
   };
 
-  const getStatusLabel = (statusValue?: ControlStatus): string => {
+  const getStatusLabel = (statusValue?: ControlStatus | ThreatStatus): string => {
     return STATUS_OPTIONS.find(opt => opt.value === statusValue)?.label || '';
   };
 
@@ -323,7 +363,7 @@ export default function EditableStatusPickerCell({
 
       {isOpen && createPortal(
         <div
-          className={`status-picker-portal ${position.renderUpward ? 'render-upward' : ''}`}
+          className={`status-picker-portal ${variantClass} ${position.renderUpward ? 'render-upward' : ''}`}
           ref={portalRef}
           onKeyDown={handlePortalKeyDown}
           style={{
@@ -357,6 +397,7 @@ export default function EditableStatusPickerCell({
                       className={`status-option status-${option.color} ${tempStatus === option.value ? 'selected' : ''}`}
                       onClick={() => handleStatusSelect(option.value)}
                       onKeyDown={(e) => handleStatusButtonKeyDown(e, index)}
+                      title={option.tooltip}
                     >
                       <IconComponent size={16} />
                       <span>{option.label}</span>
@@ -432,7 +473,7 @@ export default function EditableStatusPickerCell({
                       noteInputRef.current?.focus();
                     }
                   }}
-                  title="Create GitHub issue for this control"
+                  title={`Create GitHub issue for this ${entityType}`}
                 >
                   <Github size={16} />
                   <span>Create GitHub Issue</span>

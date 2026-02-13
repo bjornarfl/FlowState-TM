@@ -126,12 +126,35 @@ export function useGitHubIntegration(): UseGitHubIntegrationResult {
 
     try {
       const client = new GitHubApiClient(token, domain);
-      const isValid = await client.validateToken();
 
-      if (!isValid) {
-        setPatError('Invalid token. Please check your PAT and try again.');
-        setIsValidatingPat(false);
-        return false;
+      // Validate token and check permissions for the requested action
+      if (patModalAction) {
+        const result = await client.validateTokenForAction(patModalAction);
+
+        if (!result.valid) {
+          const permDetails = result.missingPermissions.length > 0
+            ? result.missingPermissions.join(', ')
+            : 'Unknown permission issue';
+          const tokenTypeHint = result.tokenType === 'classic'
+            ? ' (classic PAT)'
+            : result.tokenType === 'fine-grained'
+            ? ' (fine-grained PAT)'
+            : '';
+          setPatError(
+            `Token is valid but missing required permissions${tokenTypeHint}: ${permDetails}. ` +
+            `Please create a new token with the correct permissions.`
+          );
+          setIsValidatingPat(false);
+          return false;
+        }
+      } else {
+        // Fallback: just validate the token is authentic
+        const isValid = await client.validateToken();
+        if (!isValid) {
+          setPatError('Invalid token. Please check your PAT and try again.');
+          setIsValidatingPat(false);
+          return false;
+        }
       }
 
       // Store the PAT
@@ -155,7 +178,7 @@ export function useGitHubIntegration(): UseGitHubIntegrationResult {
       setIsValidatingPat(false);
       return false;
     }
-  }, [domain, pendingPatResolve]);
+  }, [domain, patModalAction, pendingPatResolve]);
 
   const getApiClient = useCallback((): GitHubApiClient | null => {
     const token = getPat(domain);

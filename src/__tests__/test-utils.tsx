@@ -1,6 +1,7 @@
 import { render, RenderOptions } from '@testing-library/react';
 import { ReactElement } from 'react';
 import { ToastProvider } from '../contexts/ToastContext';
+import { SaveStateProvider } from '../contexts/SaveStateContext';
 
 // Custom render function with common providers
 export function renderWithProviders(
@@ -9,7 +10,9 @@ export function renderWithProviders(
 ) {
   return render(
     <ToastProvider>
-      {ui}
+      <SaveStateProvider>
+        {ui}
+      </SaveStateProvider>
     </ToastProvider>,
     { ...options }
   );

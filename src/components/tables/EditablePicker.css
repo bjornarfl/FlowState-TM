@@ -1,30 +1,5 @@
-:root {
-  /* Light mode colors for EditablePicker */
-  --picker-default-bg: #fef08a;
-  --picker-default-text: #854d0e;
-  --picker-threats-bg: #fecaca;
-  --picker-threats-text: #7f1d1d;
-  --picker-controls-bg: #bbf7d0;
-  --picker-controls-text: #15803d;
-  --picker-components-bg: #e9d5ff;
-  --picker-components-text: #6b21a8;
-  --picker-dataflows-bg: #bfdbfe;
-  --picker-dataflows-text: #1e3a8a;
-}
-
-[data-theme="dark"] {
-  /* Dark mode colors for EditablePicker */
-  --picker-default-bg: #854d0e;
-  --picker-default-text: #fef08a;
-  --picker-threats-bg: #7f1d1d;
-  --picker-threats-text: #fecaca;
-  --picker-controls-bg: #166534;
-  --picker-controls-text: #bbf7d0;
-  --picker-components-bg: #6b21a8;
-  --picker-components-text: #e9d5ff;
-  --picker-dataflows-bg: #1e3a8a;
-  --picker-dataflows-text: #bfdbfe;
-}
+/* EditablePicker Component Styles */
+/* Entity colors are now defined in App.css as --entity-*-bg, --entity-*-border, --entity-*-text */
 
 .editable-picker-wrapper {
   outline: none;
@@ -41,6 +16,11 @@
   border-color: var(--border-color-strong);
 }
 
+/* Disable hover during drag */
+.dragging .editable-picker-wrapper:hover {
+  border-color: transparent;
+}
+
 .editable-picker-wrapper:focus {
   border: 1px solid var(--accent-blue);
   background-color: var(--bg-primary);
@@ -53,7 +33,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 8px;
+  padding: 7px; /* Reduced by 1px to account for border in edit mode */
   min-height: 36px;
   cursor: pointer;
   border-radius: 3px;
@@ -70,7 +50,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 8px;
+  padding: 7px; /* Reduced by 1px to account for border in edit mode */
   min-height: 36px;  
 }
 
@@ -88,33 +68,33 @@
 
 /* Color variants for read-only tags */
 .picker-tag-readonly.picker-variant-default {
-  background-color: var(--picker-default-bg);
-  color: var(--picker-default-text);
+  background-color: var(--entity-components-bg);
+  color: var(--entity-components-text);
 }
 
 .picker-tag-readonly.picker-variant-assets {
-  background-color: var(--picker-default-bg);
-  color: var(--picker-default-text);
+  background-color: var(--entity-assets-bg);
+  color: var(--entity-assets-text);
 }
 
 .picker-tag-readonly.picker-variant-threats {
-  background-color: var(--picker-threats-bg);
-  color: var(--picker-threats-text);
+  background-color: var(--entity-threats-bg);
+  color: var(--entity-threats-text);
 }
 
 .picker-tag-readonly.picker-variant-controls {
-  background-color: var(--picker-controls-bg);
-  color: var(--picker-controls-text);
+  background-color: var(--entity-controls-bg);
+  color: var(--entity-controls-text);
 }
 
 .picker-tag-readonly.picker-variant-components {
-  background-color: var(--picker-components-bg);
-  color: var(--picker-components-text);
+  background-color: var(--entity-components-bg);
+  color: var(--entity-components-text);
 }
 
 .picker-tag-readonly.picker-variant-dataflows {
-  background-color: var(--picker-dataflows-bg);
-  color: var(--picker-dataflows-text);
+  background-color: var(--entity-dataflows-bg);
+  color: var(--entity-dataflows-text);
 }
 
 /* Edit mode - tags with remove buttons */
@@ -129,7 +109,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 8px;
+  padding: 7px; /* Reduced by 1px so total with border = 8px like display mode */
   border: 1px solid var(--accent-blue);
   background-color: var(--bg-primary);
   border-radius: 3px;
@@ -142,8 +122,8 @@
   align-items: center;
   gap: 2px;
   padding: 2px 4px 2px 8px;
-  background-color: var(--picker-default-bg);
-  color: var(--picker-default-text);
+  background-color: var(--entity-components-bg);
+  color: var(--entity-components-text);
   border-radius: 3px;
   font-size: 12px;
   font-weight: 500;
@@ -151,50 +131,50 @@
 
 /* Color variants for edit mode tags */
 .picker-tag.picker-variant-default {
-  background-color: var(--picker-default-bg);
-  color: var(--picker-default-text);
+  background-color: var(--entity-components-bg);
+  color: var(--entity-components-text);
 }
 
 .picker-tag.picker-variant-assets {
-  background-color: var(--picker-default-bg);
-  color: var(--picker-default-text);
+  background-color: var(--entity-assets-bg);
+  color: var(--entity-assets-text);
 }
 
 .picker-tag.picker-variant-threats {
-  background-color: var(--picker-threats-bg);
-  color: var(--picker-threats-text);
+  background-color: var(--entity-threats-bg);
+  color: var(--entity-threats-text);
 }
 
 .picker-tag.picker-variant-controls {
-  background-color: var(--picker-controls-bg);
-  color: var(--picker-controls-text);
+  background-color: var(--entity-controls-bg);
+  color: var(--entity-controls-text);
 }
 
 .picker-tag.picker-variant-components {
-  background-color: var(--picker-components-bg);
-  color: var(--picker-components-text);
+  background-color: var(--entity-components-bg);
+  color: var(--entity-components-text);
 }
 
 .picker-tag.picker-variant-dataflows {
-  background-color: var(--picker-dataflows-bg);
-  color: var(--picker-dataflows-text);
+  background-color: var(--entity-dataflows-bg);
+  color: var(--entity-dataflows-text);
 }
 
 /* Adjust border color for edit containers based on variant */
 .picker-variant-threats .picker-tags-container {
-  border-color: var(--picker-threats-bg);
+  border-color: var(--entity-threats-border);
 }
 
 .picker-variant-threats .picker-tags {
-  border-color: var(--picker-threats-bg);
+  border-color: var(--entity-threats-border);
 }
 
 .picker-variant-controls .picker-tags-container {
-  border-color: var(--picker-controls-bg);
+  border-color: var(--entity-controls-border);
 }
 
 .picker-variant-controls .picker-tags {
-  border-color: var(--picker-controls-bg);
+  border-color: var(--entity-controls-border);
 }
 
 .picker-variant-components .picker-tags-container {
@@ -267,7 +247,6 @@
   border: none;
   outline: none;
   flex: 1;
-  min-width: 100px;
   padding: 4px;
   font-size: 13px;
   background: transparent;
@@ -366,28 +345,28 @@
 }
 
 .picker-count-badge.picker-variant-assets {
-  background-color: var(--picker-default-bg);
-  color: var(--picker-default-text);
+  background-color: var(--entity-assets-bg);
+  color: var(--entity-assets-text);
 }
 
 .picker-count-badge.picker-variant-threats {
-  background-color: var(--picker-threats-bg);
-  color: var(--picker-threats-text);
+  background-color: var(--entity-threats-bg);
+  color: var(--entity-threats-text);
 }
 
 .picker-count-badge.picker-variant-controls {
-  background-color: var(--picker-controls-bg);
-  color: var(--picker-controls-text);
+  background-color: var(--entity-controls-bg);
+  color: var(--entity-controls-text);
 }
 
 .picker-count-badge.picker-variant-components {
-  background-color: var(--picker-components-bg);
-  color: var(--picker-components-text);
+  background-color: var(--entity-components-bg);
+  color: var(--entity-components-text);
 }
 
 .picker-count-badge.picker-variant-dataflows {
-  background-color: var(--picker-dataflows-bg);
-  color: var(--picker-dataflows-text);
+  background-color: var(--entity-dataflows-bg);
+  color: var(--entity-dataflows-text);
 }
 
 /* No additional dark mode specific rules needed - CSS variables handle all theming */

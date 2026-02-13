@@ -141,6 +141,7 @@ describe('useFlowDiagram', () => {
   let isComponentInsideBoundary: any;
   let handleDataFlowLabelChange: any;
   let handleDataFlowDirectionChange: any;
+  let handleToggleDirectionAndReverse: any;
   let recordState: any;
 
   beforeEach(() => {
@@ -168,6 +169,7 @@ describe('useFlowDiagram', () => {
     isComponentInsideBoundary = vi.fn() as any;
     handleDataFlowLabelChange = vi.fn() as any;
     handleDataFlowDirectionChange = vi.fn() as any;
+    handleToggleDirectionAndReverse = vi.fn() as any;
     recordState = vi.fn() as any;
   });
 
@@ -190,6 +192,7 @@ describe('useFlowDiagram', () => {
     isComponentInsideBoundary,
     handleDataFlowLabelChange,
     handleDataFlowDirectionChange,
+    handleToggleDirectionAndReverse,
     recordState,
     ...overrides,
   });

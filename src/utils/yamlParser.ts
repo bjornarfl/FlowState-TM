@@ -9,7 +9,6 @@ import threatModelSchema from '../../threat_model.schema.json';
 
 // Configure Ajv for JSON schema validation
 // Note: Ajv requires runtime code generation which needs 'wasm-unsafe-eval' in CSP
-// This is acceptable for bundled, self-hosted applications
 const ajv = new Ajv({ 
   allErrors: true, 
   strict: false
@@ -1178,6 +1177,106 @@ export function updateYamlOptionalTopLevelField(
 }
 
 /**
+ * Update a top-level string array field in the YAML (like participants).
+ * Handles adding, updating, and removing the entire array.
+ * 
+ * @param yamlContent - Raw YAML string to modify
+ * @param field - Field name to update (e.g., 'participants')
+ * @param values - Array of string values (empty array removes the field)
+ * @returns Modified YAML string
+ */
+export function updateYamlTopLevelStringArray(
+  yamlContent: string,
+  field: string,
+  values: string[]
+): string {
+  const lines = yamlContent.split('\n');
+  const fieldPattern = new RegExp(`^${escapeRegex(field)}:`);
+
+  // Find the existing field and its extent
+  let fieldStartIndex = -1;
+  let fieldEndIndex = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (fieldPattern.test(lines[i])) {
+      fieldStartIndex = i;
+      // Check if it's an inline empty array like "participants: []"
+      if (/:\s*\[\s*\]/.test(lines[i])) {
+        fieldEndIndex = i;
+        break;
+      }
+      // Find the end of this array (items are indented lines starting with "- ")
+      fieldEndIndex = i;
+      for (let j = i + 1; j < lines.length; j++) {
+        const line = lines[j];
+        // Empty lines within the array are part of it
+        if (line.trim() === '') {
+          fieldEndIndex = j;
+          continue;
+        }
+        // Indented lines (array items) are part of the field
+        if (/^\s+-\s/.test(line)) {
+          fieldEndIndex = j;
+        } else {
+          // Non-indented, non-empty line means the array has ended
+          break;
+        }
+      }
+      break;
+    }
+  }
+
+  // If values are empty, remove the field entirely
+  if (values.length === 0) {
+    if (fieldStartIndex !== -1) {
+      // Remove trailing empty lines after the field
+      while (fieldEndIndex + 1 < lines.length && lines[fieldEndIndex + 1].trim() === '') {
+        fieldEndIndex++;
+      }
+      lines.splice(fieldStartIndex, fieldEndIndex - fieldStartIndex + 1);
+      return lines.join('\n');
+    }
+    return yamlContent; // Nothing to remove
+  }
+
+  // Build the new field lines
+  const newFieldLines = [`${field}:`];
+  for (const val of values) {
+    newFieldLines.push(`  - ${yamlQuote(val)}`);
+  }
+
+  if (fieldStartIndex !== -1) {
+    // Replace existing field
+    lines.splice(fieldStartIndex, fieldEndIndex - fieldStartIndex + 1, ...newFieldLines);
+  } else {
+    // Insert after description (or after name if no description)
+    let insertIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('description:')) {
+        insertIndex = i + 1;
+        break;
+      } else if (lines[i].startsWith('name:') && insertIndex === -1) {
+        insertIndex = i + 1;
+      }
+    }
+    if (insertIndex === -1) {
+      // Fallback: insert after schema_version
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].startsWith('schema_version:')) {
+          insertIndex = i + 1;
+          break;
+        }
+      }
+    }
+    if (insertIndex !== -1) {
+      lines.splice(insertIndex, 0, ...newFieldLines);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Append a new item to a YAML array section (like data_flows, components, etc.).
  * This preserves all existing content and comments. Handles empty sections and
  * empty array notation (section: []).
@@ -1334,6 +1433,181 @@ export function appendYamlItem(
     result.push(''); // Add blank line after the item when creating new section
   }
   
+  return normalizeYamlWhitespace(result.join('\n'));
+}
+
+/**
+ * Reorder items within a YAML array section by a new ref order.
+ * Surgically extracts each item block (preserving its formatting, comments,
+ * pipe blocks, etc.) and reassembles them in the specified order.
+ *
+ * @param yamlContent - Raw YAML string to modify
+ * @param section - Section name (e.g., 'assets', 'components', 'threats', 'controls')
+ * @param newOrder - Array of ref values in the desired order
+ * @returns Modified YAML string with items reordered
+ */
+export function reorderYamlSection(
+  yamlContent: string,
+  section: string,
+  newOrder: string[]
+): string {
+  const lines = yamlContent.split('\n');
+
+  // 1. Find where the section starts
+  let sectionStart = -1;
+  let sectionIndent = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const parsed = parseLine(lines[i]);
+    if (parsed.trimmed === `${section}:` || parsed.trimmed.startsWith(`${section}: `)) {
+      sectionStart = i;
+      sectionIndent = parsed.indent;
+      break;
+    }
+  }
+
+  if (sectionStart === -1) return yamlContent;
+
+  // 2. Find the end of the section by looking for either:
+  //    - A non-blank, non-comment line at sectionIndent or lower (a new section key)
+  //    - A top-level comment that precedes a new section (blank line + comment pattern)
+  // We include blank lines / comments that are between items, but NOT trailing
+  // comments that introduce the next section.
+  let sectionEnd = lines.length;
+  let lastItemContentEnd = sectionStart; // tracks last line that belongs to an item
+
+  for (let i = sectionStart + 1; i < lines.length; i++) {
+    const parsed = parseLine(lines[i]);
+
+    // A non-blank, non-comment, non-item line at section indent = new section key
+    if (parsed.trimmed.length > 0 &&
+        !parsed.trimmed.startsWith('#') &&
+        parsed.indent <= sectionIndent &&
+        !parsed.trimmed.startsWith('-')) {
+      sectionEnd = i;
+      break;
+    }
+
+    // A top-level comment at sectionIndent (e.g. "# Components") after a blank line
+    // might be introducing the next section — verify by looking ahead for a
+    // non-comment line at sectionIndent or lower (i.e. an actual section key)
+    if (parsed.trimmed.startsWith('#') && parsed.indent <= sectionIndent) {
+      if (i > 0 && lines[i - 1].trim() === '') {
+        // Look ahead past any further comments/blanks to find the next real line
+        let isNextSection = false;
+        for (let j = i + 1; j < lines.length; j++) {
+          const ahead = parseLine(lines[j]);
+          if (ahead.trimmed.length === 0 || ahead.trimmed.startsWith('#')) continue;
+          // Found a non-comment, non-blank line — check its indent
+          if (ahead.indent <= sectionIndent && !ahead.trimmed.startsWith('-')) {
+            isNextSection = true;
+          }
+          break;
+        }
+        if (isNextSection) {
+          sectionEnd = i;
+          break;
+        }
+      }
+    }
+
+    // Track the last line that looks like item content (non-blank)
+    if (parsed.trimmed.length > 0) {
+      lastItemContentEnd = i;
+    }
+  }
+
+  // Trim sectionEnd to exclude trailing blank lines between last item and sectionEnd
+  // (they belong to inter-section spacing, not items)
+  if (sectionEnd > lastItemContentEnd + 1) {
+    sectionEnd = lastItemContentEnd + 1;
+  }
+
+  // 3. Extract individual item blocks (lines between one `- ref:` and the next)
+  const itemBlocks = new Map<string, string[]>();
+  let currentRef: string | null = null;
+  let currentBlock: string[] = [];
+  let inPipeBlock = false;
+  let pipeBlockFieldIndent = 0;
+
+  for (let i = sectionStart + 1; i < sectionEnd; i++) {
+    const parsed = parseLine(lines[i]);
+
+    // Detect item start
+    if (parsed.trimmed.startsWith('- ref:')) {
+      // Save the previous item block
+      if (currentRef !== null) {
+        // Trim trailing blank lines from the block
+        while (currentBlock.length > 0 && currentBlock[currentBlock.length - 1].trim() === '') {
+          currentBlock.pop();
+        }
+        itemBlocks.set(currentRef, currentBlock);
+      }
+      currentRef = extractRefValue(parsed.trimmed);
+      currentBlock = [lines[i]];
+      inPipeBlock = false;
+      continue;
+    }
+
+    if (currentRef !== null) {
+      // Track pipe blocks to avoid misinterpreting their content
+      if (!inPipeBlock && parsed.trimmed &&
+        (parsed.trimmed.endsWith('|') || parsed.trimmed.endsWith('|-') || parsed.trimmed.endsWith('|+'))) {
+        inPipeBlock = true;
+        pipeBlockFieldIndent = parsed.indent;
+        currentBlock.push(lines[i]);
+        continue;
+      }
+
+      if (inPipeBlock) {
+        if (parsed.trimmed === '' || parsed.indent > pipeBlockFieldIndent) {
+          currentBlock.push(lines[i]);
+          continue;
+        } else {
+          inPipeBlock = false;
+          // Fall through to normal handling
+        }
+      }
+
+      currentBlock.push(lines[i]);
+    }
+  }
+
+  // Save the last block
+  if (currentRef !== null) {
+    while (currentBlock.length > 0 && currentBlock[currentBlock.length - 1].trim() === '') {
+      currentBlock.pop();
+    }
+    itemBlocks.set(currentRef, currentBlock);
+  }
+
+  // If no items found, nothing to reorder
+  if (itemBlocks.size === 0) return yamlContent;
+
+  // 4. Reassemble: lines before section items + reordered items + lines after section
+  const result: string[] = [];
+
+  // Lines up to and including the section header
+  for (let i = 0; i <= sectionStart; i++) {
+    result.push(lines[i]);
+  }
+
+  // Reordered item blocks, separated by blank lines
+  let first = true;
+  for (const ref of newOrder) {
+    const block = itemBlocks.get(ref);
+    if (!block) continue;
+    if (!first) {
+      result.push('');
+    }
+    result.push(...block);
+    first = false;
+  }
+
+  // Lines after the section
+  for (let i = sectionEnd; i < lines.length; i++) {
+    result.push(lines[i]);
+  }
+
   return normalizeYamlWhitespace(result.join('\n'));
 }
 
@@ -1680,10 +1954,10 @@ export function normalizeYamlWhitespace(yamlContent: string): string {
       needsBlankLine = !lastLineIsBlank && previousLineType !== 'comment' && previousLineType !== 'top-level-field';
     } else if (currentLineType === 'comment' && parsed.indent === 0) {
       // Blank line before top-level comments (they often introduce new sections)
-      // UNLESS the previous line was already a blank or was a section header or top-level field
+      // UNLESS the previous line was already a blank or was a section header, top-level field, or another comment
       const lastResultLine = result[result.length - 1];
       const lastLineIsBlank = lastResultLine === '';
-      needsBlankLine = !lastLineIsBlank && previousLineType !== 'section' && previousLineType !== 'top-level-field';
+      needsBlankLine = !lastLineIsBlank && previousLineType !== 'section' && previousLineType !== 'top-level-field' && previousLineType !== 'comment';
     } else if (currentLineType === 'item') {
       // Blank line between items in the same section
       // But NOT before the first item in a section

@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { produce } from 'immer';
 import type { ThreatModel, ComponentType, Direction } from '../types/threatModel';
-import { updateYamlField, updateYamlTopLevelField, updateYamlOptionalTopLevelField, renameDataFlowRef } from '../utils/yamlParser';
+import { updateYamlField, updateYamlTopLevelField, updateYamlOptionalTopLevelField, updateYamlTopLevelStringArray, renameDataFlowRef, reorderYamlSection } from '../utils/yamlParser';
 import { generateDataFlowRef } from '../utils/refGenerators';
 import { createSimpleFieldHandler, createArrayFieldHandler } from '../utils/handlerFactory';
 import { useUndoRedo } from './useUndoRedo';
@@ -53,6 +53,9 @@ export interface UseThreatModelStateResult {
   handleAssetDescriptionChange: (ref: string, newDescription: string) => void;
   handleThreatNameChange: (ref: string, newName: string) => void;
   handleThreatDescriptionChange: (ref: string, newDescription: string) => void;
+  handleThreatStatusChange: (ref: string, newStatus: string | undefined) => void;
+  handleThreatStatusLinkChange: (ref: string, newStatusLink: string | undefined) => void;
+  handleThreatStatusNoteChange: (ref: string, newStatusNote: string | undefined) => void;
   handleControlNameChange: (ref: string, newName: string) => void;
   handleControlDescriptionChange: (ref: string, newDescription: string) => void;
   handleControlStatusChange: (ref: string, newStatus: string | undefined) => void;
@@ -85,6 +88,13 @@ export interface UseThreatModelStateResult {
   // Top-level model handlers
   handleThreatModelNameChange: (newName: string) => void;
   handleThreatModelDescriptionChange: (newDescription: string) => void;
+  handleParticipantsChange: (participants: string[]) => void;
+  
+  // Reorder handlers
+  handleReorderAssets: (newOrder: string[]) => void;
+  handleReorderComponents: (newOrder: string[]) => void;
+  handleReorderThreats: (newOrder: string[]) => void;
+  handleReorderControls: (newOrder: string[]) => void;
 }
 
 export function useThreatModelState(): UseThreatModelStateResult {
@@ -242,6 +252,30 @@ export function useThreatModelState(): UseThreatModelStateResult {
   const handleControlStatusNoteChange = useCallback(
     (ref: string, newValue: string) => {
       const handler = withHistory(createSimpleFieldHandler('controls', 'status_note', setThreatModel, updateYaml, updateYamlField));
+      handler(ref, newValue);
+    },
+    [updateYaml, withHistory]
+  );
+
+  const handleThreatStatusChange = useCallback(
+    (ref: string, newValue: string) => {
+      const handler = withHistory(createSimpleFieldHandler('threats', 'status', setThreatModel, updateYaml, updateYamlField));
+      handler(ref, newValue);
+    },
+    [updateYaml, withHistory]
+  );
+
+  const handleThreatStatusLinkChange = useCallback(
+    (ref: string, newValue: string) => {
+      const handler = withHistory(createSimpleFieldHandler('threats', 'status_link', setThreatModel, updateYaml, updateYamlField));
+      handler(ref, newValue);
+    },
+    [updateYaml, withHistory]
+  );
+
+  const handleThreatStatusNoteChange = useCallback(
+    (ref: string, newValue: string) => {
+      const handler = withHistory(createSimpleFieldHandler('threats', 'status_note', setThreatModel, updateYaml, updateYamlField));
       handler(ref, newValue);
     },
     [updateYaml, withHistory]
@@ -650,6 +684,72 @@ export function useThreatModelState(): UseThreatModelStateResult {
     })(newDescription);
   }, [updateYaml, withHistory]);
 
+  const handleParticipantsChange = useCallback((participants: string[]): void => {
+    withHistory((participants: string[]): void => {
+      setThreatModel(
+        produce((draft) => {
+          if (draft) {
+            draft.participants = participants.length > 0 ? participants : undefined;
+          }
+        })
+      );
+      updateYaml((content) => updateYamlTopLevelStringArray(content, 'participants', participants));
+    })(participants);
+  }, [updateYaml, withHistory]);
+
+  // Reorder handlers - reorder arrays by ref list
+  const handleReorderAssets = useCallback((newOrder: string[]): void => {
+    withHistory((newOrder: string[]): void => {
+      setThreatModel(
+        produce((draft) => {
+          if (!draft || !draft.assets) return;
+          const assetMap = new Map(draft.assets.map(asset => [asset.ref, asset]));
+          draft.assets = newOrder.map(ref => assetMap.get(ref)!).filter(Boolean);
+        })
+      );
+      updateYaml((content) => reorderYamlSection(content, 'assets', newOrder));
+    })(newOrder);
+  }, [updateYaml, withHistory]);
+
+  const handleReorderComponents = useCallback((newOrder: string[]): void => {
+    withHistory((newOrder: string[]): void => {
+      setThreatModel(
+        produce((draft) => {
+          if (!draft || !draft.components) return;
+          const componentMap = new Map(draft.components.map(comp => [comp.ref, comp]));
+          draft.components = newOrder.map(ref => componentMap.get(ref)!).filter(Boolean);
+        })
+      );
+      updateYaml((content) => reorderYamlSection(content, 'components', newOrder));
+    })(newOrder);
+  }, [updateYaml, withHistory]);
+
+  const handleReorderThreats = useCallback((newOrder: string[]): void => {
+    withHistory((newOrder: string[]): void => {
+      setThreatModel(
+        produce((draft) => {
+          if (!draft || !draft.threats) return;
+          const threatMap = new Map(draft.threats.map(threat => [threat.ref, threat]));
+          draft.threats = newOrder.map(ref => threatMap.get(ref)!).filter(Boolean);
+        })
+      );
+      updateYaml((content) => reorderYamlSection(content, 'threats', newOrder));
+    })(newOrder);
+  }, [updateYaml, withHistory]);
+
+  const handleReorderControls = useCallback((newOrder: string[]): void => {
+    withHistory((newOrder: string[]): void => {
+      setThreatModel(
+        produce((draft) => {
+          if (!draft || !draft.controls) return;
+          const controlMap = new Map(draft.controls.map(control => [control.ref, control]));
+          draft.controls = newOrder.map(ref => controlMap.get(ref)!).filter(Boolean);
+        })
+      );
+      updateYaml((content) => reorderYamlSection(content, 'controls', newOrder));
+    })(newOrder);
+  }, [updateYaml, withHistory]);
+
   return {
     // State
     nodes,
@@ -691,6 +791,9 @@ export function useThreatModelState(): UseThreatModelStateResult {
     handleAssetDescriptionChange,
     handleThreatNameChange,
     handleThreatDescriptionChange,
+    handleThreatStatusChange,
+    handleThreatStatusLinkChange,
+    handleThreatStatusNoteChange,
     handleControlNameChange,
     handleControlDescriptionChange,
     handleControlStatusChange,
@@ -713,5 +816,10 @@ export function useThreatModelState(): UseThreatModelStateResult {
     handleToggleDirectionAndReverse,
     handleThreatModelNameChange,
     handleThreatModelDescriptionChange,
+    handleParticipantsChange,
+    handleReorderAssets,
+    handleReorderComponents,
+    handleReorderThreats,
+    handleReorderControls,
   };
 }

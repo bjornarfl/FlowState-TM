@@ -55,6 +55,13 @@ export const getAvailableTemplates = (): TemplateMetadata[] => {
       tags: ['cicd', 'intermediate'],
     },
     {
+      name: 'API Provider',
+      path: 'templates/api_provider.yaml',
+      description:
+        'Basic architecture to provide an API endpoint',
+      tags: ['api', 'provider', 'intermediate'],
+    },
+    {
       name: 'Mobile App with Backend',
       path: 'templates/mobile_app_backend.yaml',
       description:

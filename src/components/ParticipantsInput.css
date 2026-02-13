@@ -1,0 +1,103 @@
+/* ParticipantsInput - tag-style input for managing participant strings */
+
+.participants-input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background-color: transparent;
+  transition: all 0.2s ease;
+  cursor: text;
+  box-sizing: border-box;
+  margin-bottom: 32px;
+}
+
+.participants-input-container:hover {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color-strong);
+}
+
+.participants-input-container:focus-within {
+  background-color: var(--bg-primary);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.participant-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 8px;
+  background-color: var(--participant-tag-bg);
+  color: var(--participant-tag-text);
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Rotating color variants for participant tags (light mode) */
+.participant-color-0 { --participant-tag-bg: #dbeafe; --participant-tag-text: #1e40af; }
+.participant-color-1 { --participant-tag-bg: #fef08a; --participant-tag-text: #854d0e; }
+.participant-color-2 { --participant-tag-bg: #bbf7d0; --participant-tag-text: #166534; }
+.participant-color-3 { --participant-tag-bg: #fecaca; --participant-tag-text: #991b1b; }
+.participant-color-4 { --participant-tag-bg: #e9d5ff; --participant-tag-text: #6b21a8; }
+.participant-color-5 { --participant-tag-bg: #fed7aa; --participant-tag-text: #9a3412; }
+
+/* Dark mode overrides */
+[data-theme="dark"] .participant-color-0 { --participant-tag-bg: #1e3a8a; --participant-tag-text: #bfdbfe; }
+[data-theme="dark"] .participant-color-1 { --participant-tag-bg: #854d0e; --participant-tag-text: #fef08a; }
+[data-theme="dark"] .participant-color-2 { --participant-tag-bg: #166534; --participant-tag-text: #bbf7d0; }
+[data-theme="dark"] .participant-color-3 { --participant-tag-bg: #7f1d1d; --participant-tag-text: #fecaca; }
+[data-theme="dark"] .participant-color-4 { --participant-tag-bg: #581c87; --participant-tag-text: #e9d5ff; }
+[data-theme="dark"] .participant-color-5 { --participant-tag-bg: #7c2d12; --participant-tag-text: #fed7aa; }
+
+.participant-tag-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.participant-tag-remove {
+  border: none;
+  background: none;
+  color: var(--participant-tag-text);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  margin: 0;
+  border-radius: 2px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.participant-tag-remove:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.participants-text-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 2px 0;
+  min-width: 120px;
+  flex: 1;
+  font-family: inherit;
+}
+
+.participants-text-input::placeholder {
+  color: var(--text-primary);
+}
+
+.participants-text-input:focus::placeholder {
+  opacity: 0.5;
+}

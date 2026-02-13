@@ -20,9 +20,22 @@
   border-radius: 3px;
 }
 
+/* Disable hover during drag */
+.dragging .always-editable-cell-input:hover {
+  border-color: transparent;
+}
+
 .always-editable-cell-input:focus {
   outline: none;
   border-color: var(--accent-blue);
   background-color: var(--bg-primary);
   border-radius: 3px;
+}
+
+.always-editable-cell-input::placeholder {
+  color: var(--text-primary);
+}
+
+.always-editable-cell-input:focus::placeholder {
+  opacity: 0.5;
 }

@@ -109,6 +109,48 @@ export function generateBoundaryName(ref: string): string {
 }
 
 /**
+ * Check if a component name is a placeholder (e.g., "Component 1", "Component 2")
+ */
+export function isComponentNamePlaceholder(name: string): boolean {
+  return /^Component \d+$/.test(name);
+}
+
+/**
+ * Check if an asset name is a placeholder (e.g., "Asset A01", "Asset A02")
+ */
+export function isAssetNamePlaceholder(name: string): boolean {
+  return /^Asset A\d{2}$/.test(name);
+}
+
+/**
+ * Check if a threat name is a placeholder (e.g., "Threat T01", "Threat T02")
+ */
+export function isThreatNamePlaceholder(name: string): boolean {
+  return /^Threat T\d{2}$/.test(name);
+}
+
+/**
+ * Check if a control name is a placeholder (e.g., "Control C01", "Control C02")
+ */
+export function isControlNamePlaceholder(name: string): boolean {
+  return /^Control C\d{2}$/.test(name);
+}
+
+/**
+ * Check if a dataflow label is a placeholder (e.g., "DF1", "DF2", "DF123")
+ */
+export function isDataFlowLabelPlaceholder(label: string): boolean {
+  return /^DF\d+$/.test(label);
+}
+
+/**
+ * Check if a boundary name is a placeholder (e.g., "Boundary 1", "Boundary 2")
+ */
+export function isBoundaryNamePlaceholder(name: string): boolean {
+  return /^Boundary \d+$/.test(name);
+}
+
+/**
  * Generate a data flow ref based on source, destination, and direction
  * If a ref with this name already exists, append a number to make it unique
  */

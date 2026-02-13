@@ -67,6 +67,7 @@ vi.mock('../../utils/refGenerators', () => ({
   generateControlName: vi.fn((ref: string) => `Control ${ref}`),
   generateComponentName: vi.fn(() => 'Component 1'),
   generateBoundaryName: vi.fn(() => 'Boundary 1'),
+  isComponentNamePlaceholder: vi.fn((name: string) => /^Component \d+$/.test(name)),
 }));
 
 // Mock template loader

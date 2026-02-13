@@ -159,3 +159,90 @@ export const ACTION_REQUIRED_SCOPES: Record<GitHubAction, string[]> = {
   'create-issue': ['Issues (Write)'],
   sync: ['Contents (Read)', 'Issues (Read)'],
 };
+
+/**
+ * Required classic PAT scopes per action.
+ * Each entry is an array of scope groups (OR logic within a group).
+ */
+export const CLASSIC_REQUIRED_SCOPES: Record<GitHubAction, string[][]> = {
+  load: [['repo', 'public_repo']],
+  commit: [['repo']],
+  'create-issue': [['repo']],
+  sync: [['repo']],
+};
+
+/**
+ * Result of validating a PAT's permissions for a specific action
+ */
+export interface TokenValidationResult {
+  valid: boolean;
+  user?: GitHubUser;
+  missingPermissions: string[];
+  tokenType: 'classic' | 'fine-grained' | 'unknown';
+}
+
+/**
+ * Git Data API types - for multi-file atomic commits
+ */
+
+export interface GitRef {
+  ref: string;
+  node_id: string;
+  url: string;
+  object: {
+    sha: string;
+    type: string;
+    url: string;
+  };
+}
+
+export interface GitCommit {
+  sha: string;
+  tree: {
+    sha: string;
+    url: string;
+  };
+  message: string;
+  parents: Array<{
+    sha: string;
+    url: string;
+  }>;
+  html_url?: string;
+}
+
+export interface GitBlob {
+  sha: string;
+  url: string;
+}
+
+export interface GitTreeItem {
+  path: string;
+  mode: '100644' | '100755' | '040000' | '160000' | '120000';
+  type: 'blob' | 'tree' | 'commit';
+  sha?: string;
+  content?: string;
+}
+
+export interface GitTree {
+  sha: string;
+  url: string;
+  tree: GitTreeItem[];
+}
+
+/**
+ * File to include in a multi-file commit
+ */
+export interface CommitFile {
+  path: string;
+  content: string;
+  /** Whether content is base64-encoded (e.g. for binary files like PNG) */
+  isBase64?: boolean;
+}
+
+/**
+ * Options for additional files to include in a GitHub commit
+ */
+export interface CommitExtraFilesOptions {
+  includeDiagramImage: boolean;
+  includeMarkdownFile: boolean;
+}

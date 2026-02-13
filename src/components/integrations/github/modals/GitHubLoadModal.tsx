@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Search,
   X,
+  Folder,
 } from 'lucide-react';
 import { GitHubApiClient, GitHubApiError } from '../githubApi';
 import { clearPatIfNotPersisted } from '../patStorage';
@@ -425,6 +426,10 @@ export const GitHubLoadModal: React.FC<GitHubLoadModalProps> = ({
                 </button>
               )}
             </div>
+            <div className="files-path-hint">
+              <Folder size={12} />
+              <span>Scanning <code>/.threat-models</code> and subfolders</span>
+            </div>
 
             <div className="github-files-list">
               {filesLoading === 'loading' ? (
@@ -442,20 +447,38 @@ export const GitHubLoadModal: React.FC<GitHubLoadModalProps> = ({
                   <span>Select a branch to view threat models</span>
                 </div>
               ) : (
-                threatModels.map((file) => (
-                  <button
-                    key={file.path}
-                    className="github-file-item"
-                    onClick={() => handleFileClick(file)}
-                    disabled={fileLoading !== null}
-                  >
-                    <FileText size={16} />
-                    <span className="file-name">{file.name}</span>
-                    {fileLoading === file.path && (
-                      <Loader2 size={14} className="spin" />
-                    )}
-                  </button>
-                ))
+                threatModels.map((file) => {
+                  // Show path relative to .threat-models/
+                  const relativePath = file.path.startsWith('.threat-models/')
+                    ? file.path.slice('.threat-models/'.length)
+                    : file.name;
+                  const subfolder = relativePath.includes('/')
+                    ? relativePath.substring(0, relativePath.lastIndexOf('/'))
+                    : null;
+
+                  return (
+                    <button
+                      key={file.path}
+                      className="github-file-item"
+                      onClick={() => handleFileClick(file)}
+                      disabled={fileLoading !== null}
+                    >
+                      <FileText size={16} />
+                      <span className="file-name">
+                        {file.name}
+                        {subfolder && (
+                          <span className="file-subfolder">
+                            <Folder size={14} />
+                            {subfolder}
+                          </span>
+                        )}
+                      </span>
+                      {fileLoading === file.path && (
+                        <Loader2 size={14} className="spin" />
+                      )}
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>

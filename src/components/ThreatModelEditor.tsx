@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import { produce } from 'immer';
 // @ts-ignore - @xyflow/react has type declaration issues but works at runtime
 import { ReactFlow, applyNodeChanges, applyEdgeChanges, Background, Controls, MiniMap, SelectionMode } from '@xyflow/react';
@@ -9,15 +9,20 @@ import ThreatModelNode from './canvas/ThreatModelNode';
 import BoundaryNode from './canvas/BoundaryNode';
 import EditableCell from './tables/EditableCell';
 import EditableTextarea from './tables/EditableTextarea';
+import ParticipantsInput from './ParticipantsInput';
+import type { ParticipantsInputRef } from './ParticipantsInput';
 import EditableEdge from './canvas/EditableEdge';
 import EdgeMarkers from './canvas/EdgeMarkers';
 import CustomConnectionLine from './canvas/CustomConnectionLine';
+import ComponentsTable, { ComponentsTableRef } from './tables/ComponentsTable';
 import AssetsTable, { AssetsTableRef } from './tables/AssetsTable';
 import ThreatsTable, { ThreatsTableRef } from './tables/ThreatsTable';
 import ControlsTable, { ControlsTableRef } from './tables/ControlsTable';
 import ArchitectureSection, { ArchitectureSectionRef } from './tables/ArchitectureSection';
+import SummarySection from './tables/SummarySection';
 import type { YamlEditorRef } from './YamlEditor';
 import { DiscardModal } from './modals/DiscardModal';
+import { ExternalChangeModal } from './modals/ExternalChangeModal';
 import { PatModal } from './integrations/github/modals/PatModal';
 import { GitHubSettingsModal } from './integrations/github/modals/GitHubSettingsModal';
 import { GitHubCommitModal } from './integrations/github/modals/GitHubCommitModal';
@@ -32,18 +37,23 @@ import {
   clearAutoSaveDraft,
   saveAutoSaveDraft,
   saveToBrowserStorage,
+  updateModelContent,
   isFileSystemAccessSupported,
   openFileWithPicker,
   saveFileWithPicker,
   writeToFileHandle,
   requestFileHandlePermission,
   storeFileHandle,
+  getStoredFileHandle,
   clearFileHandle,
 } from '../utils/browserStorage';
+import type { SerializedSaveSource } from '../utils/browserStorage';
 import { useGitHubIntegration, SyncResult } from '../hooks/useGitHubIntegration';
 import type { GitHubMetadata } from './integrations/github/types';
 import { getPat, clearPatIfNotPersisted } from './integrations/github/patStorage';
 import { useToast } from '../contexts/ToastContext';
+import { useSaveState } from '../contexts/SaveStateContext';
+import type { SaveSource } from '../contexts/SaveStateContext';
 
 // Lazy load YamlEditor and its heavy dependencies (syntax-highlighter)
 const YamlEditor = lazy(() => import('./YamlEditor'));
@@ -53,16 +63,18 @@ import { Navbar } from './navbar/Navbar';
 import { parseYaml, updateYamlField, appendYamlItem, removeRefFromArrayFields, removeYamlItem, modelToYaml } from '../utils/yamlParser';
 import { transformThreatModel } from '../utils/flowTransformer';
 import { generateShareableUrl, getModelFromUrl, decodeModelFromUrl } from '../utils/urlEncoder';
+import { findUnoccupiedPosition } from '../utils/navigationHelpers';
 import { generateComponentRef, generateBoundaryRef, generateAssetRef, generateThreatRef, generateControlRef, generateAssetName, generateThreatName, generateControlName, generateComponentName, generateBoundaryName } from '../utils/refGenerators';
 import { useDiagramExport, generateMarkdown } from '../hooks/useDiagramExport';
 import { useThreatModelState } from '../hooks/useThreatModelState';
 import { useFlowDiagram } from '../hooks/useFlowDiagram';
 import { useAutoSave } from '../hooks/useAutoSave';
+import { useFileChangeDetection } from '../hooks/useFileChangeDetection';
 import { useCanvasNavigation } from '../hooks/useCanvasNavigation';
 import { useDataFlowCreation } from '../hooks/useDataFlowCreation';
 import { useDataFlowReconnection } from '../hooks/useDataFlowReconnection';
 import type { ThreatModel, ComponentType} from '../types/threatModel';
-import type { GitHubAction, GitHubDomain } from './integrations/github/types';
+import type { GitHubAction, GitHubDomain, CommitExtraFilesOptions, CommitFile } from './integrations/github/types';
 import { GitHubApiClient } from './integrations/github/githubApi';
 
 const nodeTypes = {
@@ -233,6 +245,9 @@ export default function ThreatModelEditor({
     handleAssetDescriptionChange,
     handleThreatNameChange,
     handleThreatDescriptionChange,
+    handleThreatStatusChange,
+    handleThreatStatusLinkChange,
+    handleThreatStatusNoteChange,
     handleControlNameChange,
     handleControlDescriptionChange,
     handleControlStatusChange,
@@ -255,6 +270,11 @@ export default function ThreatModelEditor({
     handleToggleDirectionAndReverse,
     handleThreatModelNameChange,
     handleThreatModelDescriptionChange,
+    handleParticipantsChange,
+    handleReorderAssets,
+    handleReorderComponents,
+    handleReorderThreats,
+    handleReorderControls,
   } = useThreatModelState();
 
   // GitHub integration hook
@@ -294,6 +314,8 @@ export default function ThreatModelEditor({
     return saved ? parseInt(saved, 10) : 600;
   });
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [showExternalChangeModal, setShowExternalChangeModal] = useState(false);
+  const [externalChangeContent, setExternalChangeContent] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<SourceType | null>(null);
   const [showFileBrowser, setShowFileBrowser] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -302,10 +324,17 @@ export default function ThreatModelEditor({
   const [showCommitModal, setShowCommitModal] = useState(false);
   const [localFileHandle, setLocalFileHandle] = useState<FileSystemFileHandle | null>(null);
   const [localFileName, setLocalFileName] = useState<string | null>(null);
+  const [browserModelId, setBrowserModelId] = useState<string | null>(null);
+  const [isWorkingSectionCollapsed, setIsWorkingSectionCollapsed] = useState(false);
+  const [isThreatsSectionCollapsed, setIsThreatsSectionCollapsed] = useState(false);
+  const [isControlsSectionCollapsed, setIsControlsSectionCollapsed] = useState(false);
+  const [isSummarySectionCollapsed, setIsSummarySectionCollapsed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const yamlEditorRef = useRef<YamlEditorRef>(null);
   const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+  const participantsInputRef = useRef<ParticipantsInputRef>(null);
+  const componentsTableRef = useRef<ComponentsTableRef>(null);
   const assetsTableRef = useRef<AssetsTableRef>(null);
   const threatsTableRef = useRef<ThreatsTableRef>(null);
   const controlsTableRef = useRef<ControlsTableRef>(null);
@@ -313,11 +342,25 @@ export default function ThreatModelEditor({
   const reactFlowWrapperRef = useRef<HTMLDivElement>(null);
   const mousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const reactFlowInstanceRef = useRef<any>(null);
+  const pendingFitViewRef = useRef(false);
   const loadedFromUrlRef = useRef(false);
   const justExitedEditModeRef = useRef(false);
+  const quickSaveRef = useRef<(() => Promise<void>) | null>(null);
 
   // Use toast hook
   const { showToast } = useToast();
+
+  // Use save state context
+  const {
+    saveSource,
+    lastSavedAt,
+    isDirty,
+    setSaveSource,
+    markSaved,
+    markDirty,
+    clearSaveState,
+    autoSaveSettings,
+  } = useSaveState();
 
   // Wrapped setIsEditingMode that tracks when we exit edit mode
   const handleEditModeChange = useCallback((isEditing: boolean) => {
@@ -332,10 +375,58 @@ export default function ThreatModelEditor({
     setIsEditingMode(isEditing);
   }, [isEditingMode, setIsEditingMode]);
 
+  // Callback to select a specific node (deselects all others)
+  const handleSelectNode = useCallback((nodeId: string) => {
+    setNodes((prevNodes) =>
+      prevNodes.map((node) => ({
+        ...node,
+        selected: node.id === nodeId,
+      }))
+    );
+  }, [setNodes]);
+
   // Use diagram export hook
-  const { handleDownloadFolder, handleCopyToConfluence, handleCopyDiagramToClipboard } = useDiagramExport(threatModel, isDarkMode, githubMetadata);
+  const { captureDiagram, handleDownloadFolder, handleCopyToConfluence, handleCopyDiagramToClipboard } = useDiagramExport(threatModel, isDarkMode, githubMetadata);
 
   // Enable auto-save for YAML content changes
+  const saveSourceMeta: SerializedSaveSource | undefined = useMemo(() => {
+    if (!saveSource) return undefined;
+    switch (saveSource.type) {
+      case 'browser':
+        return { type: 'browser' as const, modelId: saveSource.modelId, modelName: saveSource.modelName };
+      case 'file':
+        return { type: 'file' as const, fileName: saveSource.fileName };
+      case 'github':
+        return { type: 'github' as const, githubMeta: saveSource.metadata };
+      default:
+        return undefined;
+    }
+  }, [saveSource]);
+
+  // Determine whether source-level auto-save is active for the current file
+  const isAutoSaveToBrowser = autoSaveSettings.autoSaveBrowserFiles && saveSource?.type === 'browser';
+  const isAutoSaveToFile = autoSaveSettings.autoSaveLocalFiles && saveSource?.type === 'file';
+  const isAutoSavingToSource = isAutoSaveToBrowser || isAutoSaveToFile;
+
+  // --- External file change detection ---
+  // Use a ref for the reload callback to avoid forward-reference issues
+  // (handleCreateAsset etc. are defined later in the component)
+  const reloadFromExternalRef = useRef<((newContent: string) => void) | null>(null);
+
+  const fileChangeDetection = useFileChangeDetection({
+    fileHandle: localFileHandle,
+    isDirty,
+    enabled: saveSource?.type === 'file',
+    onExternalChange: useCallback((newContent: string) => {
+      reloadFromExternalRef.current?.(newContent);
+    }, []),
+    onConflictDetected: useCallback((newContent: string) => {
+      // Editor is dirty — show conflict modal
+      setExternalChangeContent(newContent);
+      setShowExternalChangeModal(true);
+    }, []),
+  });
+
   useAutoSave(
     threatModel?.name || 'Untitled',
     yamlContent,
@@ -343,8 +434,52 @@ export default function ThreatModelEditor({
       enabled: !!threatModel && !!yamlContent,
       delay: 2000,
       githubMetadata,
+      autoSaveToBrowser: isAutoSaveToBrowser,
+      autoSaveToFile: isAutoSaveToFile,
+      browserModelId: saveSource?.type === 'browser' ? saveSource.modelId : null,
+      fileHandle: saveSource?.type === 'file' ? saveSource.handle : null,
+      saveSourceMeta,
+      lastSavedToSourceAt: lastSavedAt,
+      isDirty,
+      onSave: () => {
+        // When auto-saving to source, update the last-saved timestamp
+        if (isAutoSavingToSource) {
+          markSaved();
+        }
+      },
+      onFileWritten: (lastModified: number) => {
+        // Keep file-change detection in sync with our own writes
+        fileChangeDetection.updateLastKnownModified(lastModified);
+      },
     }
   );
+
+  // After loading a new file, fit the canvas to show all nodes once they render
+  useEffect(() => {
+    if (pendingFitViewRef.current && nodes.length > 0 && reactFlowInstanceRef.current) {
+      pendingFitViewRef.current = false;
+      // Wait one frame for React Flow to measure the new nodes
+      requestAnimationFrame(() => {
+        reactFlowInstanceRef.current?.fitView({ padding: 0.2, duration: 400 });
+      });
+    }
+  }, [nodes]);
+
+  // Track dirty state: mark dirty whenever yamlContent changes, unless
+  // we're within a load window (used by load handlers to avoid marking a
+  // freshly-loaded file as dirty). The timestamp approach survives multiple
+  // rapid yamlContent updates that can happen during a single load cycle
+  // (e.g. content set → editor sync → normalization).
+  const loadTimestampRef = useRef(Date.now()); // initial load counts
+  useEffect(() => {
+    // Suppress dirty marking for 500ms after a load event
+    if (Date.now() - loadTimestampRef.current < 500) {
+      return;
+    }
+    if (yamlContent) {
+      markDirty();
+    }
+  }, [yamlContent, markDirty]);
 
   // Helper function to check if component is inside boundary
   const isComponentInsideBoundary = useCallback(
@@ -471,6 +606,7 @@ export default function ThreatModelEditor({
     isComponentInsideBoundary,
     handleDataFlowLabelChange,
     handleDataFlowDirectionChange,
+    handleToggleDirectionAndReverse,
     recordState,
   });
 
@@ -533,9 +669,13 @@ export default function ThreatModelEditor({
   }, [setNodes, setEdges, cancelCreation, cancelReconnection]);
 
   // Handle clicking on nodes to cancel data flow operations
-  const onNodeClick = useCallback(() => {
-    cancelCreation();
-    cancelReconnection();
+  // Don't cancel when Cmd/Ctrl is pressed (for multi-selection)
+  const onNodeClick = useCallback((event: React.MouseEvent, _node: any) => {
+    // Only cancel operations if Cmd/Ctrl is not pressed (to allow multi-selection)
+    if (!event.metaKey && !event.ctrlKey) {
+      cancelCreation();
+      cancelReconnection();
+    }
   }, [cancelCreation, cancelReconnection]);
 
   // Handle clicking on edges to cancel data flow operations
@@ -551,8 +691,9 @@ export default function ThreatModelEditor({
       
       // Check if click is outside the canvas
       if (reactFlowWrapperRef.current && !reactFlowWrapperRef.current.contains(target)) {
-        // Deselect all nodes
+        // Deselect all nodes and edges
         setNodes((currentNodes) => currentNodes.map((node) => ({ ...node, selected: false })));
+        setEdges((currentEdges) => currentEdges.map((edge) => ({ ...edge, selected: false })));
         // Cancel any active data flow operations
         cancelCreation();
         cancelReconnection();
@@ -563,7 +704,7 @@ export default function ThreatModelEditor({
     return () => {
       document.removeEventListener('mousedown', handleGlobalClick);
     };
-  }, [setNodes, cancelCreation, cancelReconnection]);
+  }, [setNodes, setEdges, cancelCreation, cancelReconnection]);
 
   // Apply dark mode to document
   useEffect(() => {
@@ -603,6 +744,28 @@ export default function ThreatModelEditor({
           event.preventDefault();
           undo();
         }
+      }
+
+      // Cmd/Ctrl + S = Quick save (works even when editing text)
+      if (isCtrlOrCmd && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        quickSaveRef.current?.();
+      }
+      
+      // Press '-' to toggle all table sections
+      if (event.key === '-' && !isEditing && !isCtrlOrCmd) {
+        event.preventDefault();
+        // Check if all sections are currently collapsed or expanded
+        const allCollapsed = isWorkingSectionCollapsed && isThreatsSectionCollapsed && isControlsSectionCollapsed && isSummarySectionCollapsed;
+        const allExpanded = !isWorkingSectionCollapsed && !isThreatsSectionCollapsed && !isControlsSectionCollapsed && !isSummarySectionCollapsed;
+        
+        // If all are collapsed or mixed state, expand all. If all are expanded, collapse all.
+        const shouldExpand = allCollapsed || (!allExpanded);
+        
+        setIsWorkingSectionCollapsed(!shouldExpand);
+        setIsThreatsSectionCollapsed(!shouldExpand);
+        setIsControlsSectionCollapsed(!shouldExpand);
+        setIsSummarySectionCollapsed(!shouldExpand);
       }
       
       // Press 'e' to start edit mode on selected node or edge
@@ -734,7 +897,7 @@ export default function ThreatModelEditor({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [undo, redo, nodes, setNodes, creationState.phase]);
+  }, [undo, redo, nodes, setNodes, creationState.phase, isWorkingSectionCollapsed, isThreatsSectionCollapsed, isControlsSectionCollapsed, isSummarySectionCollapsed]);
 
   // Sync YAML content to editor ref after state updates
   useEffect(() => {
@@ -876,8 +1039,14 @@ export default function ThreatModelEditor({
           y: centerY,
         });
         
-        x = Math.round(flowCenter.x - 70); // Center horizontally (140/2)
-        y = Math.round(flowCenter.y - 40); // Center vertically (80/2)
+        const targetX = Math.round(flowCenter.x - 70); // Center horizontally (140/2)
+        const targetY = Math.round(flowCenter.y - 40); // Center vertically (80/2)
+        
+        // Find an unoccupied position near the target
+        // Components are 140x80
+        const unoccupiedPos = findUnoccupiedPosition(targetX, targetY, nodesRef.current, 140, 80);
+        x = unoccupiedPos.x;
+        y = unoccupiedPos.y;
       } else {
         // Fallback to origin if reactFlow instance is not available
         x = 0;
@@ -925,6 +1094,7 @@ export default function ThreatModelEditor({
         onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(ref, newDescription),
         onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(ref, newAssets),
         onCreateAsset: handleCreateAsset,
+        onSelectNode: () => handleSelectNode(ref),
       },
     };
     
@@ -969,8 +1139,14 @@ export default function ThreatModelEditor({
           y: centerY,
         });
         
-        x = Math.round(flowCenter.x - 75); // Center horizontally (150/2)
-        y = Math.round(flowCenter.y - 37.5); // Center vertically (75/2)
+        const targetX = Math.round(flowCenter.x - 75); // Center horizontally (150/2)
+        const targetY = Math.round(flowCenter.y - 37.5); // Center vertically (75/2)
+        
+        // Find an unoccupied position near the target
+        // Boundaries are 150x75
+        const unoccupiedPos = findUnoccupiedPosition(targetX, targetY, nodesRef.current, 150, 75);
+        x = unoccupiedPos.x;
+        y = unoccupiedPos.y;
       } else {
         // Fallback to origin if reactFlow instance is not available
         x = 0;
@@ -1014,7 +1190,6 @@ export default function ThreatModelEditor({
       id: ref,
       type: 'boundaryNode',
       position: { x, y },
-      draggable: true,
       selectable: true,
       style: {
         width,
@@ -1467,29 +1642,31 @@ export default function ThreatModelEditor({
    * Cross-table navigation callbacks
    */
   // Map column names between Assets and Threats tables
-  const mapAssetsToThreatsColumn = useCallback((assetsColumn: 'name' | 'description'): 'name' | 'description' | 'items' => {
+  const mapAssetsToThreatsColumn = useCallback((assetsColumn: 'name' | 'description'): 'name' | 'description' | 'items' | 'status' => {
     // name -> name, description -> description
     return assetsColumn;
   }, []);
 
-  const mapThreatsToAssetsColumn = useCallback((threatsColumn: 'name' | 'description' | 'items'): 'name' | 'description' => {
-    // name -> name, description -> description, items -> description (fallback)
-    return threatsColumn === 'items' ? 'description' : threatsColumn;
+  const mapThreatsToAssetsColumn = useCallback((threatsColumn: 'name' | 'description' | 'items' | 'status'): 'name' | 'description' => {
+    // name -> name, description -> description, items -> description, status -> description (fallback)
+    return threatsColumn === 'name' ? 'name' : 'description';
   }, []);
 
   // Map column names between Threats and Controls tables
-  const mapThreatsToControlsColumn = useCallback((threatsColumn: 'name' | 'description' | 'items'): number => {
-    // name -> 0 (name), description -> 1 (description), items -> 2 (items)
+  const mapThreatsToControlsColumn = useCallback((threatsColumn: 'name' | 'description' | 'items' | 'status'): number => {
+    // name -> 0 (name), description -> 1 (description), items -> 2 (items), status -> 3 (status)
     if (threatsColumn === 'name') return 0;
     if (threatsColumn === 'description') return 1;
-    return 2; // items
+    if (threatsColumn === 'items') return 2;
+    return 3; // status
   }, []);
 
-  const mapControlsToThreatsColumn = useCallback((controlsColumnIndex: number): 'name' | 'description' | 'items' => {
-    // 0 (name) -> name, 1 (description) -> description, 2 (items) -> items, 3 (status) -> items (fallback)
+  const mapControlsToThreatsColumn = useCallback((controlsColumnIndex: number): 'name' | 'description' | 'items' | 'status' => {
+    // 0 (name) -> name, 1 (description) -> description, 2 (items) -> items, 3 (status) -> status
     if (controlsColumnIndex === 0) return 'name';
     if (controlsColumnIndex === 1) return 'description';
-    return 'items';
+    if (controlsColumnIndex === 2) return 'items';
+    return 'status';
   }, []);
 
   // Title and Description navigation callbacks
@@ -1509,7 +1686,7 @@ export default function ThreatModelEditor({
     if (direction === 'up') {
       titleInputRef.current?.focus();
     } else if (direction === 'down') {
-      assetsTableRef.current?.focusCellByColumn('name', 0);
+      participantsInputRef.current?.focus();
     }
   }, []);
 
@@ -1517,8 +1694,36 @@ export default function ThreatModelEditor({
     if (shiftKey) {
       titleInputRef.current?.focus();
     } else {
-      assetsTableRef.current?.focusCellByColumn('name', 0);
+      participantsInputRef.current?.focus();
     }
+  }, []);
+
+  // Participants navigation callbacks
+  const handleParticipantsNavigate = useCallback((direction: 'up' | 'down') => {
+    if (direction === 'up') {
+      descriptionInputRef.current?.focus();
+    } else if (direction === 'down') {
+      componentsTableRef.current?.focusCellByColumn('name', 0);
+    }
+  }, []);
+
+  const handleParticipantsTabPress = useCallback((shiftKey: boolean) => {
+    if (shiftKey) {
+      descriptionInputRef.current?.focus();
+    } else {
+      componentsTableRef.current?.focusCellByColumn('name', 0);
+    }
+  }, []);
+
+  // Components navigation callbacks
+  const handleComponentsNavigateToNextTable = useCallback((column: 'name' | 'type' | 'description' | 'assets') => {
+    const targetColumn = column === 'type' ? 'name' : (column === 'assets' ? 'description' : column);
+    assetsTableRef.current?.focusCellByColumn(targetColumn as 'name' | 'description', 0);
+  }, []);
+
+  const handleComponentsNavigateToPreviousTable = useCallback((_column: 'name' | 'type' | 'description' | 'assets') => {
+    // Navigate back to participants field
+    participantsInputRef.current?.focus();
   }, []);
 
   // Assets navigation callbacks
@@ -1527,48 +1732,28 @@ export default function ThreatModelEditor({
     threatsTableRef.current?.focusCellByColumn(targetColumn, 0);
   }, [mapAssetsToThreatsColumn]);
 
-  const handleAssetsNavigateToPreviousTable = useCallback((_column: 'name' | 'description') => {
-    // Navigate back to description field
-    descriptionInputRef.current?.focus();
-  }, []);
+  const handleAssetsNavigateToPreviousTable = useCallback((column: 'name' | 'description') => {
+    // Navigate back to components table, mapping to the appropriate column
+    const components = threatModel?.components || [];
+    if (components.length > 0) {
+      // Map assets column to components column: name -> name, description -> description
+      const targetColumn = column === 'description' ? 'description' : 'name';
+      componentsTableRef.current?.focusCellByColumn(targetColumn, components.length - 1);
+    } else {
+      descriptionInputRef.current?.focus();
+    }
+  }, [threatModel?.components]);
 
   // Threats navigation callbacks
-  const handleThreatsNavigateToNextTable = useCallback((column: 'name' | 'description' | 'items') => {
+  const handleThreatsNavigateToNextTable = useCallback((column: 'name' | 'description' | 'items' | 'status') => {
     const targetColumnIndex = mapThreatsToControlsColumn(column);
     controlsTableRef.current?.focusCellByColumnIndex(targetColumnIndex, 0);
   }, [mapThreatsToControlsColumn]);
 
-  const handleThreatsNavigateToPreviousTable = useCallback((column: 'name' | 'description' | 'items') => {
+  const handleThreatsNavigateToPreviousTable = useCallback((column: 'name' | 'description' | 'items' | 'status') => {
     const targetColumn = mapThreatsToAssetsColumn(column);
     assetsTableRef.current?.focusCellByColumn(targetColumn, (threatModel?.assets?.length || 1) - 1);
   }, [mapThreatsToAssetsColumn, threatModel?.assets?.length]);
-
-  // Controls navigation callbacks
-  const handleControlsNavigateToNextTable = useCallback((columnIndex: number) => {
-    // Navigate to architecture section
-    const components = threatModel?.components || [];
-    const boundaries = threatModel?.boundaries || [];
-    const dataFlows = threatModel?.data_flows || [];
-    
-    // Map controls column to architecture column
-    // 0 (name) -> name, 1 (description) -> description, 2 (mitigates) -> assets, 3 (status) -> assets
-    const columnMap: { [key: number]: string } = {
-      0: 'name',
-      1: 'description',
-      2: 'assets', // mitigates column maps to assets
-      3: 'assets', // status column maps to assets
-    };
-    const targetColumn = columnMap[columnIndex] || 'name';
-    
-    // Focus first available table in architecture section
-    if (components.length > 0) {
-      architectureSectionRef.current?.focusCell('component', targetColumn, 0);
-    } else if (boundaries.length > 0) {
-      architectureSectionRef.current?.focusCell('boundary', targetColumn, 0);
-    } else if (dataFlows.length > 0) {
-      architectureSectionRef.current?.focusCell('dataflow', 'direction', 0);
-    }
-  }, [threatModel?.components, threatModel?.boundaries, threatModel?.data_flows]);
 
   const handleControlsNavigateToPreviousTable = useCallback((columnIndex: number) => {
     const targetColumn = mapControlsToThreatsColumn(columnIndex);
@@ -1576,66 +1761,71 @@ export default function ThreatModelEditor({
   }, [mapControlsToThreatsColumn, threatModel?.threats?.length]);
 
   // Architecture navigation callbacks
-  const handleArchitectureNavigateToPreviousTable = useCallback((table: 'component' | 'boundary' | 'dataflow', column: string) => {
-    // When navigating up from architecture section, go back to controls
-    const controls = threatModel?.controls || [];
-    const components = threatModel?.components || [];
+  const handleArchitectureNavigateToPreviousTable = useCallback((table: 'boundary' | 'dataflow', column: string) => {
+    // When navigating up from architecture section
+    const assets = threatModel?.assets || [];
     const boundaries = threatModel?.boundaries || [];
     
-    // Map architecture columns back to controls columns
-    // name -> 0, description -> 1, assets -> 2 (items/mitigates), type -> 0
-    let targetColumnIndex = 0;
-    if (column === 'description') {
-      targetColumnIndex = 1;
-    } else if (column === 'assets') {
-      targetColumnIndex = 2; // items/mitigates column
-    } else if (column === 'type') {
-      targetColumnIndex = 0;
+    // Map architecture columns back to assets/threats columns
+    // name -> name, description/label -> description
+    let targetColumn: 'name' | 'description' = 'name';
+    if (column === 'description' || column === 'label') {
+      targetColumn = 'description';
     }
     
-    // If navigating from components, go to last control
-    if (table === 'component' && controls.length > 0) {
-      controlsTableRef.current?.focusCellByColumnIndex(targetColumnIndex, controls.length - 1);
-    } else if (table === 'boundary') {
-      // Navigating from boundary - check if there are components above
-      if (components.length > 0) {
-        // Navigate to last component
-        const cellType = column === 'description' ? 'description' : 'name';
-        architectureSectionRef.current?.focusCell('component', cellType, components.length - 1);
-      } else if (controls.length > 0) {
-        // No components, go to controls
-        controlsTableRef.current?.focusCellByColumnIndex(targetColumnIndex, controls.length - 1);
+    if (table === 'boundary') {
+      // Navigating from boundary, go to last asset
+      if (assets.length > 0) {
+        assetsTableRef.current?.focusCellByColumn(targetColumn, assets.length - 1);
       }
     } else if (table === 'dataflow') {
-      // Navigating from data flow - check if there are boundaries or components above
+      // Navigating from data flow - check if there are boundaries above
       if (boundaries.length > 0) {
         // Navigate to last boundary
         const cellType = column === 'label' ? 'description' : 'name';
         architectureSectionRef.current?.focusCell('boundary', cellType, boundaries.length - 1);
-      } else if (components.length > 0) {
-        // No boundaries, go to last component
-        const cellType = column === 'label' ? 'description' : 'name';
-        architectureSectionRef.current?.focusCell('component', cellType, components.length - 1);
-      } else if (controls.length > 0) {
-        // No boundaries or components, go to controls
-        controlsTableRef.current?.focusCellByColumnIndex(targetColumnIndex, controls.length - 1);
+      } else if (assets.length > 0) {
+        // No boundaries, go to assets
+        assetsTableRef.current?.focusCellByColumn(targetColumn, assets.length - 1);
       }
     }
-  }, [threatModel?.controls, threatModel?.components, threatModel?.boundaries]);
+  }, [threatModel?.assets, threatModel?.boundaries]);
+
+  const handleArchitectureNavigateToNextTable = useCallback((table: 'boundary' | 'dataflow', column: string) => {
+    // When navigating down from architecture section (only from data flows), go to threats
+    if (table === 'dataflow') {
+      // Map data flow columns to threats columns
+      // direction -> name, label -> description
+      const targetColumn: 'name' | 'description' | 'items' = column === 'label' ? 'description' : 'name';
+      threatsTableRef.current?.focusCellByColumn(targetColumn, 0);
+    }
+  }, []);
 
   const handleSaveToBrowser = useCallback(async (): Promise<void> => {
     const content = yamlEditorRef.current?.getContent() || yamlContent;
     if (content && threatModel?.name) {
       try {
-        await saveToBrowserStorage(threatModel.name, content, undefined, githubMetadata ?? undefined);
-        // Clear auto-save draft after explicit save
-        await clearAutoSaveDraft();
+        let id: string;
+        if (browserModelId) {
+          // Update existing entry in-place
+          await updateModelContent(browserModelId, content, threatModel.name, githubMetadata ?? undefined);
+          id = browserModelId;
+        } else {
+          // Create a new browser storage entry
+          id = await saveToBrowserStorage(threatModel.name, content, undefined, githubMetadata ?? undefined);
+          setBrowserModelId(id);
+        }
+        const source: SaveSource = { type: 'browser', modelId: id, modelName: threatModel.name };
+        // Update auto-save draft with current content (draft always persists for crash recovery)
+        const now = Date.now();
+        await saveAutoSaveDraft(threatModel.name, content, githubMetadata ?? undefined, { type: 'browser', modelId: id, modelName: threatModel.name }, now);
+        markSaved(source, now);
         showToast(`Saved "${threatModel.name}" to browser storage`, 'success');
       } catch (error) {
         showToast(`Failed to save to browser: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
       }
     }
-  }, [yamlContent, threatModel?.name, githubMetadata]);
+  }, [yamlContent, threatModel?.name, githubMetadata, browserModelId, markSaved]);
 
   const handleSaveToFile = useCallback(async (): Promise<void> => {
     const content = yamlEditorRef.current?.getContent() || yamlContent;
@@ -1649,9 +1839,13 @@ export default function ThreatModelEditor({
         // We have an existing file handle - try to write directly to it
         const hasPermission = await requestFileHandlePermission(localFileHandle, 'readwrite');
         if (hasPermission) {
-          await writeToFileHandle(localFileHandle, content);
-          // Clear auto-save draft after explicit save
-          await clearAutoSaveDraft();
+          const newLastModified = await writeToFileHandle(localFileHandle, content);
+          fileChangeDetection.updateLastKnownModified(newLastModified);
+          const source: SaveSource = { type: 'file', handle: localFileHandle, fileName: localFileHandle.name };
+          // Update auto-save draft with current content (draft always persists for crash recovery)
+          const now = Date.now();
+          await saveAutoSaveDraft(threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: localFileHandle.name }, now);
+          markSaved(source, now);
           showToast(`Saved to ${localFileHandle.name}`, 'success');
         } else {
           // Permission denied - offer to save as new file
@@ -1662,7 +1856,11 @@ export default function ThreatModelEditor({
               setLocalFileHandle(handle);
               setLocalFileName(handle.name);
               await storeFileHandle(handle);
-              await clearAutoSaveDraft();
+              const source: SaveSource = { type: 'file', handle, fileName: handle.name };
+              // Update auto-save draft with current content (draft always persists for crash recovery)
+              const now = Date.now();
+              await saveAutoSaveDraft(threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
+              markSaved(source, now);
               showToast(`Saved to ${handle.name}`, 'success');
             }
           }
@@ -1674,14 +1872,18 @@ export default function ThreatModelEditor({
           setLocalFileHandle(handle);
           setLocalFileName(handle.name);
           await storeFileHandle(handle);
-          await clearAutoSaveDraft();
+          const source: SaveSource = { type: 'file', handle, fileName: handle.name };
+          // Update auto-save draft with current content (draft always persists for crash recovery)
+          const now = Date.now();
+          await saveAutoSaveDraft(threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
+          markSaved(source, now);
           showToast(`Saved to ${handle.name}`, 'success');
         }
       }
     } catch (error) {
       showToast(`Failed to save to file: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     }
-  }, [yamlContent, threatModel?.name, localFileHandle]);
+  }, [yamlContent, threatModel?.name, localFileHandle, githubMetadata, markSaved, fileChangeDetection]);
 
   const handleSaveToNewFile = useCallback(async (): Promise<void> => {
     const content = yamlEditorRef.current?.getContent() || yamlContent;
@@ -1697,13 +1899,51 @@ export default function ThreatModelEditor({
         setLocalFileHandle(handle);
         setLocalFileName(handle.name);
         await storeFileHandle(handle);
-        await clearAutoSaveDraft();
+        const source: SaveSource = { type: 'file', handle, fileName: handle.name };
+        // Update auto-save draft with current content (draft always persists for crash recovery)
+        const now = Date.now();
+        await saveAutoSaveDraft(threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
+        markSaved(source, now);
         showToast(`Saved to ${handle.name}`, 'success');
       }
     } catch (error) {
       showToast(`Failed to save to file: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     }
-  }, [yamlContent, threatModel?.name]);
+  }, [yamlContent, threatModel?.name, githubMetadata, markSaved]);
+
+  const handleSaveToNewBrowser = useCallback(async (): Promise<void> => {
+    const content = yamlEditorRef.current?.getContent() || yamlContent;
+    if (!content || !threatModel?.name) {
+      showToast('No content to save', 'error');
+      return;
+    }
+
+    try {
+      // Prompt user for a new name
+      const newName = prompt('Enter a name for the new browser storage entry:', `${threatModel.name} (copy)`);
+      if (!newName) {
+        // User cancelled
+        return;
+      }
+
+      // Create a new browser storage entry with the new name
+      const id = await saveToBrowserStorage(newName, content, undefined, githubMetadata ?? undefined);
+      setBrowserModelId(id);
+      
+      // Update threat model name to match the new name
+      const updatedThreatModel = { ...threatModel, name: newName };
+      setThreatModel(updatedThreatModel);
+      
+      const source: SaveSource = { type: 'browser', modelId: id, modelName: newName };
+      // Update auto-save draft with current content (draft always persists for crash recovery)
+      const now = Date.now();
+      await saveAutoSaveDraft(newName, content, githubMetadata ?? undefined, { type: 'browser', modelId: id, modelName: newName }, now);
+      markSaved(source, now);
+      showToast(`Saved as "${newName}" to browser storage`, 'success');
+    } catch (error) {
+      showToast(`Failed to save to browser: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    }
+  }, [yamlContent, threatModel, githubMetadata, markSaved]);
 
   const handleDownloadFolderClick = useCallback(async (): Promise<void> => {
     // Get content from YAML editor if available (includes unsaved changes), otherwise use state
@@ -1754,9 +1994,8 @@ export default function ThreatModelEditor({
         return;
       }
       
-      // Generate markdown from the threat model
-      const modelName = threatModel.name || 'threat_model';
-      const markdown = generateMarkdown(threatModel, modelName, githubMetadata);
+      // Generate markdown from the threat model (with embedded diagram, not PNG reference)
+      const markdown = generateMarkdown(threatModel, undefined, githubMetadata, false);
       
       await navigator.clipboard.writeText(markdown);
       showToast('Markdown copied to clipboard!', 'success');
@@ -1774,6 +2013,28 @@ export default function ThreatModelEditor({
     }
   }, [requirePat]);
 
+  const handleQuickSave = useCallback(async (): Promise<void> => {
+    if (!saveSource) {
+      // No save source set yet — default to local
+      await handleSaveToFile();
+      return;
+    }
+    switch (saveSource.type) {
+      case 'browser':
+        await handleSaveToBrowser();
+        break;
+      case 'file':
+        await handleSaveToFile();
+        break;
+      case 'github':
+        await handleCommitToGitHub();
+        break;
+    }
+  }, [saveSource, handleSaveToBrowser, handleSaveToFile, handleCommitToGitHub]);
+
+  // Keep ref in sync so keyboard shortcut always calls latest version
+  quickSaveRef.current = handleQuickSave;
+
   const handleCommitModalClose = useCallback(() => {
     setShowCommitModal(false);
   }, []);
@@ -1784,7 +2045,8 @@ export default function ThreatModelEditor({
     branch: string,
     path: string,
     commitMessage: string,
-    sha?: string
+    sha?: string,
+    extraFiles?: CommitExtraFilesOptions
   ): Promise<void> => {
     const content = yamlEditorRef.current?.getContent() || yamlContent;
     if (!content) {
@@ -1801,53 +2063,177 @@ export default function ThreatModelEditor({
         }
       }
 
-      // Commit the file
-      const response = await client.createOrUpdateFile(
-        owner,
-        repo,
-        path,
-        content,
-        commitMessage,
-        branch,
-        sha
-      );
+      // Derive base name from the YAML path for consistent naming
+      // e.g., ".threat-models/my-model.yaml" → "my-model"
+      const pathDir = path.substring(0, path.lastIndexOf('/') + 1); // ".threat-models/"
+      const yamlFilename = path.substring(path.lastIndexOf('/') + 1); // "my-model.yaml"
+      const baseName = yamlFilename.replace(/\.(yaml|yml)$/i, ''); // "my-model"
 
-      // Create updated metadata with new SHA and timestamp
-      const updatedMetadata: GitHubMetadata = {
-        domain: githubDomain,
-        owner,
-        repository: repo,
-        branch,
-        path,
-        sha: response.content.sha,
-        loadedAt: Date.now(),
-      };
+      if (extraFiles?.includeDiagramImage || extraFiles?.includeMarkdownFile) {
+        // Multi-file commit using Git Data API
+        const files: CommitFile[] = [];
 
-      // Update the metadata state
-      setGitHubMetadata(updatedMetadata);
-      
-      // Update metadata in browser storage if this model is saved
-      if (threatModel?.name) {
-        await saveToBrowserStorage(
-          threatModel.name,
+        // Always include the YAML file
+        files.push({
+          path,
           content,
-          undefined,
-          updatedMetadata
+        });
+
+        // Capture diagram if image is requested
+        let pngBase64: string | undefined;
+        if (extraFiles.includeDiagramImage) {
+          const diagramDataUrl = await captureDiagram(3); // 3x scale
+          if (diagramDataUrl) {
+            pngBase64 = diagramDataUrl.split(',')[1]; // Strip data:image/png;base64, prefix
+            files.push({
+              path: `${pathDir}${baseName}.png`,
+              content: pngBase64,
+              isBase64: true,
+            });
+          }
+        }
+
+        // Generate markdown if requested
+        if (extraFiles.includeMarkdownFile && threatModel) {
+          // If both image and markdown are selected, reference the PNG file.
+          // If only markdown is selected, embed a Mermaid diagram instead.
+          const includePngReference = extraFiles.includeDiagramImage && !!pngBase64;
+
+          // Build metadata for the markdown footer links
+          const metadataForMarkdown = {
+            domain: githubDomain,
+            owner,
+            repository: repo,
+            branch,
+            path,
+            sha: sha || '',
+            loadedAt: Date.now(),
+          };
+
+          let markdown = generateMarkdown(
+            threatModel,
+            threatModel.name || baseName,
+            metadataForMarkdown,
+            includePngReference
+          );
+
+          // If referencing PNG, update the image path to match actual filename
+          if (includePngReference) {
+            const defaultPngRef = `${(threatModel.name || baseName).replace(/\s+/g, '_').toLowerCase()}_diagram.png`;
+            const actualPngFilename = `${baseName}.png`;
+            markdown = markdown.replace(defaultPngRef, actualPngFilename);
+          }
+
+          files.push({
+            path: `${pathDir}${baseName}.md`,
+            content: markdown,
+          });
+        }
+
+        // Perform atomic multi-file commit
+        const result = await client.createMultiFileCommit(
+          owner,
+          repo,
+          branch,
+          commitMessage,
+          files
         );
+
+        // After multi-file commit, get the new YAML file SHA for metadata
+        const newYamlSha = await client.getFileSha(owner, repo, path, branch);
+
+        // Create updated metadata
+        const updatedMetadata: GitHubMetadata = {
+          domain: githubDomain,
+          owner,
+          repository: repo,
+          branch,
+          path,
+          sha: newYamlSha || result.commitSha,
+          loadedAt: Date.now(),
+        };
+
+        // Update the metadata state
+        setGitHubMetadata(updatedMetadata);
+
+        // Update metadata in browser storage if this model is saved
+        if (threatModel?.name) {
+          await saveToBrowserStorage(
+            threatModel.name,
+            content,
+            undefined,
+            updatedMetadata
+          );
+        }
+
+        // Update autosave draft with new metadata
+        const now = Date.now();
+        await saveAutoSaveDraft(
+          threatModel?.name || 'Untitled',
+          content,
+          updatedMetadata,
+          undefined,
+          now
+        );
+
+        const fileCount = files.length;
+        const ghSource: SaveSource = { type: 'github', metadata: updatedMetadata };
+        markSaved(ghSource, now);
+        showToast(`Successfully committed ${fileCount} file${fileCount > 1 ? 's' : ''} to ${owner}/${repo}`, 'success');
+      } else {
+        // Single-file commit (original behavior)
+        const response = await client.createOrUpdateFile(
+          owner,
+          repo,
+          path,
+          content,
+          commitMessage,
+          branch,
+          sha
+        );
+
+        // Create updated metadata with new SHA and timestamp
+        const updatedMetadata: GitHubMetadata = {
+          domain: githubDomain,
+          owner,
+          repository: repo,
+          branch,
+          path,
+          sha: response.content.sha,
+          loadedAt: Date.now(),
+        };
+
+        // Update the metadata state
+        setGitHubMetadata(updatedMetadata);
+
+        // Update metadata in browser storage if this model is saved
+        if (threatModel?.name) {
+          await saveToBrowserStorage(
+            threatModel.name,
+            content,
+            undefined,
+            updatedMetadata
+          );
+        }
+
+        // Update autosave draft with new metadata
+        const now = Date.now();
+        await saveAutoSaveDraft(
+          threatModel?.name || 'Untitled',
+          content,
+          updatedMetadata,
+          undefined,
+          now
+        );
+
+        showToast(`Successfully committed to ${owner}/${repo}`, 'success');
+        const ghSource: SaveSource = { type: 'github', metadata: updatedMetadata };
+        markSaved(ghSource, now);
       }
-      
-      // Update autosave draft with new metadata
-      await saveAutoSaveDraft(
-        threatModel?.name || 'Untitled',
-        content,
-        updatedMetadata
-      );
-      
-      showToast(`Successfully committed to ${owner}/${repo}`, 'success');
     } catch (error) {
       throw error; // Re-throw to let modal handle the error display
     }
-  }, [yamlContent, githubDomain, threatModel?.name, getApiClient, requirePat, setGitHubMetadata]);
+  }, [yamlContent, githubDomain, threatModel, getApiClient, requirePat, setGitHubMetadata, captureDiagram, markSaved]);
 
   const getCommitApiClient = useCallback(() => requirePat('commit'), [requirePat]);
 
@@ -2017,9 +2403,13 @@ export default function ThreatModelEditor({
   // Handler for processing uploaded or selected files
   const handleFileSelect = useCallback((
     file: File | { name: string; content: string },
-    fileHandle?: FileSystemFileHandle | null
+    fileHandle?: FileSystemFileHandle | null,
+    loadedBrowserModelId?: string
   ) => {
     setShowFileBrowser(false);
+
+    // Reset save state from the previous file immediately
+    clearSaveState();
     
     // Clear file handle when loading from browser storage (file handle is explicitly null)
     // Keep it when loading from local file picker (fileHandle is provided)
@@ -2032,9 +2422,17 @@ export default function ThreatModelEditor({
       setLocalFileName(fileHandle.name);
       storeFileHandle(fileHandle);
     }
+
+    // Track browser model ID for in-place updates
+    if (loadedBrowserModelId) {
+      setBrowserModelId(loadedBrowserModelId);
+    } else {
+      setBrowserModelId(null);
+    }
     
     const processContent = async (content: string) => {
       const model = parseYaml(content);
+      loadTimestampRef.current = Date.now();
       setYamlContent(content);
       setThreatModel(model);
       // Clear GitHub metadata when loading non-GitHub files
@@ -2055,6 +2453,7 @@ export default function ThreatModelEditor({
               onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
               onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
               onCreateAsset: handleCreateAsset,
+              onSelectNode: () => handleSelectNode(node.id),
             },
           };
         } else if (node.type === 'boundaryNode') {
@@ -2086,6 +2485,15 @@ export default function ThreatModelEditor({
       setNodes(nodesWithCallbacks);
       setEdges(edgesWithCallbacks);
       clearHistory();
+      pendingFitViewRef.current = true;
+
+      // Set save source based on how the file was loaded
+      if (loadedBrowserModelId) {
+        markSaved({ type: 'browser', modelId: loadedBrowserModelId, modelName: model.name || 'Untitled' });
+      } else if (fileHandle) {
+        markSaved({ type: 'file', handle: fileHandle, fileName: fileHandle.name });
+      }
+      // Template or fallback — save state already cleared at the top
     };
     
     if (file instanceof File) {
@@ -2099,7 +2507,67 @@ export default function ThreatModelEditor({
         showToast('Failed to process content', 'error');
       });
     }
-  }, [handleDataFlowLabelChange, handleComponentNameChange, handleComponentTypeChange, handleComponentDescriptionChange, handleComponentAssetsChange, handleBoundaryNameChange, handleBoundaryResizeEnd, handleDataFlowDirectionChange, clearHistory, setGitHubMetadata]);
+  }, [handleDataFlowLabelChange, handleComponentNameChange, handleComponentTypeChange, handleComponentDescriptionChange, handleComponentAssetsChange, handleBoundaryNameChange, handleBoundaryResizeEnd, handleDataFlowDirectionChange, clearHistory, setGitHubMetadata, markSaved, clearSaveState]);
+
+  // Populate the external reload ref — needs to be after all node-callback
+  // handlers are defined so they can be captured in the closure.
+  reloadFromExternalRef.current = (newContent: string) => {
+    loadTimestampRef.current = Date.now();
+    const model = parseYaml(newContent);
+    setYamlContent(newContent);
+    setThreatModel(model);
+
+    const { nodes: transformedNodes, edges: transformedEdges } = transformThreatModel(model, handleDataFlowLabelChange);
+    const nodesWithCallbacks = transformedNodes.map((node) => {
+      if (node.type === 'threatModelNode') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            availableAssets: model.assets?.map(a => ({ ref: a.ref, name: a.name })) || [],
+            onNameChange: (newName: string) => handleComponentNameChange(node.id, newName),
+            onEditModeChange: handleEditModeChange,
+            onTypeChange: (newType: ComponentType) => handleComponentTypeChange(node.id, newType),
+            onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
+            onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
+            onCreateAsset: handleCreateAsset,
+            onSelectNode: () => handleSelectNode(node.id),
+          },
+        };
+      } else if (node.type === 'boundaryNode') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onNameChange: (newName: string) => handleBoundaryNameChange(node.id, newName),
+            onEditModeChange: handleEditModeChange,
+            onResizeEnd: (width: number, height: number) => handleBoundaryResizeEnd(node.id, width, height),
+          },
+        };
+      }
+      return node;
+    });
+    const edgesWithCallbacks = transformedEdges.map((edge) => ({
+      ...edge,
+      data: {
+        ...edge.data,
+        edgeRef: edge.id,
+        onLabelChange: handleDataFlowLabelChange,
+        onDirectionChange: handleDataFlowDirectionChange,
+        onToggleDirectionAndReverse: handleToggleDirectionAndReverse,
+        onEditModeChange: handleEditModeChange,
+      },
+    }));
+    setNodes(nodesWithCallbacks);
+    setEdges(edgesWithCallbacks);
+    clearHistory();
+    pendingFitViewRef.current = true;
+
+    if (localFileHandle) {
+      markSaved({ type: 'file', handle: localFileHandle, fileName: localFileHandle.name });
+    }
+    showToast('File reloaded — changed externally', 'info');
+  };
 
   // Handler for opening local files - uses File System Access API when available
   const handleUploadFromLocal = useCallback(async () => {
@@ -2110,6 +2578,8 @@ export default function ThreatModelEditor({
           // Use the file handle and content from the picker
           const file = { name: result.name, content: result.content };
           handleFileSelect(file, result.handle);
+          // Seed the file-change detection baseline with the file's current timestamp
+          fileChangeDetection.updateLastKnownModified(result.lastModified);
         }
       } catch (error) {
         console.error('Failed to open file:', error);
@@ -2119,12 +2589,16 @@ export default function ThreatModelEditor({
       // Fall back to file input
       fileInputRef.current?.click();
     }
-  }, [handleFileSelect]);
+  }, [handleFileSelect, fileChangeDetection]);
 
   // Handlers for new threat model creation
   const handleNewThreatModelClick = useCallback((source: SourceType) => {
-    // Only show discard modal if there are unsaved changes (undo history exists)
-    const shouldShowModal = canUndo;
+    // Show discard modal if there are unsaved changes (isDirty), or if there's
+    // no save source yet but the user has made edits (canUndo). The latter
+    // covers the case where the user loaded a template and edited it but never
+    // saved — isDirty isn't meaningful without a save source, so we fall back
+    // to undo history as evidence of user work.
+    const shouldShowModal = isDirty || (!saveSource && canUndo);
     
     setSelectedSource(source);
 
@@ -2138,13 +2612,16 @@ export default function ThreatModelEditor({
         loadTemplateByPath('empty.yaml')
           .then((content) => {
             const model = parseYaml(content);
+            loadTimestampRef.current = Date.now();
             setYamlContent(content);
             setThreatModel(model);
             // Clear GitHub metadata and file handle when loading empty template
             setGitHubMetadata(null);
             setLocalFileHandle(null);
             setLocalFileName(null);
+            setBrowserModelId(null);
             clearFileHandle();
+            clearSaveState();
             const { nodes: transformedNodes, edges: transformedEdges } = transformThreatModel(model, handleDataFlowLabelChange);
             
             const nodesWithCallbacks = transformedNodes.map((node) => {
@@ -2160,6 +2637,7 @@ export default function ThreatModelEditor({
                     onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
                     onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
                     onCreateAsset: handleCreateAsset,
+                    onSelectNode: () => handleSelectNode(node.id),
                   },
                 };
               } else if (node.type === 'boundaryNode') {
@@ -2191,6 +2669,7 @@ export default function ThreatModelEditor({
             setNodes(nodesWithCallbacks);
             setEdges(edgesWithCallbacks);
             clearHistory();
+            pendingFitViewRef.current = true;
           })
           .catch((err) => {
             console.error('Failed to load empty template:', err);
@@ -2204,7 +2683,7 @@ export default function ThreatModelEditor({
         setShowFileBrowser(true);
       }
     }
-  }, [canUndo, handleDataFlowLabelChange, handleComponentNameChange, handleComponentTypeChange, handleComponentDescriptionChange, handleComponentAssetsChange, handleBoundaryNameChange, handleBoundaryResizeEnd, handleDataFlowDirectionChange, clearHistory, setGitHubMetadata, handleUploadFromLocal]);
+  }, [isDirty, saveSource, canUndo, handleDataFlowLabelChange, handleComponentNameChange, handleComponentTypeChange, handleComponentDescriptionChange, handleComponentAssetsChange, handleBoundaryNameChange, handleBoundaryResizeEnd, handleDataFlowDirectionChange, clearHistory, setGitHubMetadata, handleUploadFromLocal]);
 
   const handleDiscardConfirm = useCallback(() => {
     setShowDiscardModal(false);
@@ -2214,13 +2693,16 @@ export default function ThreatModelEditor({
       loadTemplateByPath('empty.yaml')
         .then((content) => {
           const model = parseYaml(content);
+          loadTimestampRef.current = Date.now();
           setYamlContent(content);
           setThreatModel(model);
           // Clear GitHub metadata and file handle when loading empty template
           setGitHubMetadata(null);
           setLocalFileHandle(null);
           setLocalFileName(null);
+          setBrowserModelId(null);
           clearFileHandle();
+          clearSaveState();
           const { nodes: transformedNodes, edges: transformedEdges } = transformThreatModel(model, handleDataFlowLabelChange);
           
           const nodesWithCallbacks = transformedNodes.map((node) => {
@@ -2236,6 +2718,7 @@ export default function ThreatModelEditor({
                   onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
                   onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
                   onCreateAsset: handleCreateAsset,
+                  onSelectNode: () => handleSelectNode(node.id),
                 },
               };
             } else if (node.type === 'boundaryNode') {
@@ -2267,6 +2750,7 @@ export default function ThreatModelEditor({
           setNodes(nodesWithCallbacks);
           setEdges(edgesWithCallbacks);
           clearHistory();
+          pendingFitViewRef.current = true;
         })
         .catch((err) => {
           console.error('Failed to load empty template:', err);
@@ -2286,6 +2770,39 @@ export default function ThreatModelEditor({
     setSelectedSource(null);
   }, []);
 
+  // --- External change conflict handlers ---
+  const handleKeepMyChanges = useCallback(() => {
+    setShowExternalChangeModal(false);
+    setExternalChangeContent(null);
+    fileChangeDetection.resolveConflict();
+  }, [fileChangeDetection]);
+
+  const handleLoadExternalChanges = useCallback(() => {
+    if (!externalChangeContent) return;
+    setShowExternalChangeModal(false);
+    fileChangeDetection.resolveConflict();
+
+    // Reload the external content using the shared reload helper
+    reloadFromExternalRef.current?.(externalChangeContent);
+    setExternalChangeContent(null);
+    showToast('Loaded external changes', 'success');
+  }, [externalChangeContent, fileChangeDetection, showToast]);
+
+  const handleSaveAsAndLoadExternal = useCallback(async () => {
+    // Save current work to a new file, then load the external content
+    const content = yamlEditorRef.current?.getContent() || yamlContent;
+    if (content) {
+      const handle = await saveFileWithPicker(content, threatModel?.name ? `${threatModel.name}.yaml` : 'threat_model.yaml');
+      if (!handle) {
+        // User cancelled the save dialog - stay in the modal
+        return;
+      }
+      showToast(`Saved your changes to ${handle.name}`, 'success');
+    }
+    // Now load the external changes
+    handleLoadExternalChanges();
+  }, [yamlContent, threatModel?.name, handleLoadExternalChanges, showToast]);
+
   const handleFileBrowserBack = useCallback(() => {
     setShowFileBrowser(false);
     setSelectedSource(null);
@@ -2295,15 +2812,22 @@ export default function ThreatModelEditor({
   const handleGitHubFileSelect = useCallback((content: string, metadata: GitHubMetadata) => {
     setShowFileBrowser(false);
     setSelectedSource(null);
+
+    // Reset save state from the previous file immediately
+    clearSaveState();
     
     const model = parseYaml(content);
+    loadTimestampRef.current = Date.now();
     setYamlContent(content);
     setThreatModel(model);
     setGitHubMetadata(metadata);
     // Clear local file handle when loading from GitHub
     setLocalFileHandle(null);
     setLocalFileName(null);
+    setBrowserModelId(null);
     clearFileHandle();
+    // Set save source to GitHub (markSaved resets dirty + sets timestamp)
+    markSaved({ type: 'github', metadata });
     
     const { nodes: transformedNodes, edges: transformedEdges } = transformThreatModel(model, handleDataFlowLabelChange);
     
@@ -2320,6 +2844,7 @@ export default function ThreatModelEditor({
             onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
             onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
             onCreateAsset: handleCreateAsset,
+            onSelectNode: () => handleSelectNode(node.id),
           },
         };
       } else if (node.type === 'boundaryNode') {
@@ -2351,10 +2876,11 @@ export default function ThreatModelEditor({
     setNodes(nodesWithCallbacks);
     setEdges(edgesWithCallbacks);
     clearHistory();
+    pendingFitViewRef.current = true;
     
     // Clean up PAT after successful GitHub action completion
     cleanupPat();
-  }, [handleDataFlowLabelChange, handleComponentNameChange, handleComponentTypeChange, handleComponentDescriptionChange, handleComponentAssetsChange, handleBoundaryNameChange, handleBoundaryResizeEnd, handleDataFlowDirectionChange, clearHistory, setGitHubMetadata, cleanupPat]);
+  }, [handleDataFlowLabelChange, handleComponentNameChange, handleComponentTypeChange, handleComponentDescriptionChange, handleComponentAssetsChange, handleBoundaryNameChange, handleBoundaryResizeEnd, handleDataFlowDirectionChange, clearHistory, setGitHubMetadata, cleanupPat, markSaved, clearSaveState]);
 
   // Handler for GitHub errors
   const handleGitHubError = useCallback((error: string) => {
@@ -2429,6 +2955,7 @@ export default function ThreatModelEditor({
             onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
             onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
             onCreateAsset: handleCreateAsset,
+            onSelectNode: () => handleSelectNode(node.id),
           },
         };
       } else if (node.type === 'boundaryNode') {
@@ -2460,7 +2987,7 @@ export default function ThreatModelEditor({
     
     setNodes(nodesWithCallbacks);
     setEdges(edgesWithCallbacks);
-  }, [handleComponentNameChange, handleComponentTypeChange, handleComponentDescriptionChange, handleComponentAssetsChange, handleBoundaryNameChange, handleBoundaryResizeEnd, handleDataFlowLabelChange, handleDataFlowDirectionChange]);
+  }, [handleComponentNameChange, handleComponentTypeChange, handleComponentDescriptionChange, handleComponentAssetsChange, handleBoundaryNameChange, handleBoundaryResizeEnd, handleDataFlowLabelChange, handleDataFlowDirectionChange, handleSelectNode]);
 
   useEffect(() => {
     async function loadData(): Promise<void> {
@@ -2498,6 +3025,7 @@ export default function ThreatModelEditor({
                     onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
                     onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
                     onCreateAsset: handleCreateAsset,
+                    onSelectNode: () => handleSelectNode(node.id),
                   },
                 };
               } else if (node.type === 'boundaryNode') {
@@ -2530,6 +3058,7 @@ export default function ThreatModelEditor({
             setEdges(edgesWithCallbacks);
             setError(null);
             clearHistory();
+            pendingFitViewRef.current = true;
             
             showToast('Threat model loaded from share link', 'success');
             setLoading(false);
@@ -2554,11 +3083,46 @@ export default function ThreatModelEditor({
           if (draft) {
             try {
               // Automatically resume the draft
-              setYamlContent(draft.content);
               const model = parseYaml(draft.content);
+              setYamlContent(draft.content);
               // Restore GitHub metadata if available
               if (draft.githubMetadata) {
                 setGitHubMetadata(draft.githubMetadata);
+              }
+
+              // Restore save source from draft
+              if (draft.saveSource) {
+                if (draft.saveSource.type === 'browser' && draft.saveSource.modelId) {
+                  setBrowserModelId(draft.saveSource.modelId);
+                  markSaved({
+                    type: 'browser',
+                    modelId: draft.saveSource.modelId,
+                    modelName: draft.saveSource.modelName || 'Untitled',
+                  }, draft.lastSavedToSourceAt);
+                } else if (draft.saveSource.type === 'file' && draft.saveSource.fileName) {
+                  // Try to restore file handle from IndexedDB
+                  const storedHandle = await getStoredFileHandle();
+                  if (storedHandle) {
+                    setLocalFileHandle(storedHandle);
+                    setLocalFileName(storedHandle.name);
+                    markSaved({
+                      type: 'file',
+                      handle: storedHandle,
+                      fileName: storedHandle.name,
+                    }, draft.lastSavedToSourceAt);
+                  }
+                  // If handle is gone, we can't restore file source — user will need to re-save
+                } else if (draft.saveSource.type === 'github' && draft.saveSource.githubMeta) {
+                  markSaved({
+                    type: 'github',
+                    metadata: draft.saveSource.githubMeta,
+                  }, draft.lastSavedToSourceAt);
+                }
+
+                // Restore the dirty flag from the draft
+                if (draft.isDirty) {
+                  markDirty();
+                }
               }
               setThreatModel(model);
               
@@ -2577,6 +3141,7 @@ export default function ThreatModelEditor({
                       onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
                       onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
                       onCreateAsset: handleCreateAsset,
+                      onSelectNode: () => handleSelectNode(node.id),
                     },
                   };
                 } else if (node.type === 'boundaryNode') {
@@ -2608,6 +3173,9 @@ export default function ThreatModelEditor({
               setNodes(nodesWithCallbacks);
               setEdges(edgesWithCallbacks);
               clearHistory();
+              pendingFitViewRef.current = true;
+              // Update load timestamp AFTER all state updates to prevent spurious dirty marking
+              loadTimestampRef.current = Date.now();
               setLoading(false);
               return;
             } catch (draftError) {
@@ -2632,6 +3200,7 @@ export default function ThreatModelEditor({
           // If GitHub metadata is provided with initial content, set it
           if (initialGitHubMetadata) {
             setGitHubMetadata(initialGitHubMetadata);
+            setSaveSource({ type: 'github', metadata: initialGitHubMetadata });
           }
         } else if (initialFile) {
           rawYaml = await initialFile.text();
@@ -2660,6 +3229,7 @@ export default function ThreatModelEditor({
                 onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
                 onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
                 onCreateAsset: handleCreateAsset,
+                onSelectNode: () => handleSelectNode(node.id),
               },
             };
           } else if (node.type === 'boundaryNode') {
@@ -2693,6 +3263,7 @@ export default function ThreatModelEditor({
         setEdges(edgesWithCallbacks);
         setThreatModel(data);
         setError(null);
+        pendingFitViewRef.current = true;
       } catch (err) {
         console.error('Failed to load threat model:', err);
         setError('Failed to load threat model. Please check the console for details.');
@@ -2758,7 +3329,6 @@ export default function ThreatModelEditor({
         isDarkMode={isDarkMode}
         canUndo={canUndo}
         canRedo={canRedo}
-        githubMetadata={githubMetadata}
         localFileName={localFileName}
         canSaveToFile={isFileSystemAccessSupported()}
         onSidebarCollapse={handleSidebarCollapse}
@@ -2772,18 +3342,21 @@ export default function ThreatModelEditor({
         onUndo={undo}
         onRedo={redo}
         onNewThreatModel={handleNewThreatModelClick}
+        onQuickSave={handleQuickSave}
         onSaveToBrowser={handleSaveToBrowser}
         onSaveToFile={handleSaveToFile}
         onSaveToNewFile={handleSaveToNewFile}
+        onSaveToNewBrowser={handleSaveToNewBrowser}
         onCommitToGitHub={handleCommitToGitHub}
         onDownloadFolder={handleDownloadFolderClick}
         onDarkModeToggle={() => setIsDarkMode(!isDarkMode)}
         onGitHubSettingsClick={openSettingsModal}
         onGenerateShareLink={handleGenerateShareLink}
       />
+
       <div className="content-wrapper">
         <div 
-          className={`tables-section ${isCollapsed ? 'collapsed' : ''} ${sidebarView === 'yaml' ? 'yaml-view' : ''}`}
+          className={`tables-container ${isCollapsed ? 'collapsed' : ''} ${sidebarView === 'yaml' ? 'yaml-view' : ''}`}
           style={{ width: isCollapsed ? 0 : isCanvasCollapsed ? '100%' : `${tablesSectionWidth}px` }}
         >
           <div style={{ display: sidebarView === 'yaml' ? 'flex' : 'none', height: '100%' }}>
@@ -2815,6 +3388,7 @@ export default function ThreatModelEditor({
                 <EditableCell
                   ref={titleInputRef}
                   value={threatModel?.name || ''}
+                  placeholder={threatModel?.name === 'TM Title' ? 'TM Title' : undefined}
                   onSave={handleThreatModelNameChange}
                   onNavigate={handleTitleNavigate}
                   onTabPress={handleTitleTabPress}
@@ -2825,75 +3399,137 @@ export default function ThreatModelEditor({
                 <EditableTextarea
                   ref={descriptionInputRef}
                   value={threatModel?.description || ''}
+                  placeholder={!threatModel?.description || threatModel?.description === 'Description of scope...' ? 'Description of scope...' : undefined}
                   onSave={handleThreatModelDescriptionChange}
                   onNavigate={handleDescriptionNavigate}
                   onTabPress={handleDescriptionTabPress}
+                />
+              </div>
+              <div className="threat-model-participants">
+                <ParticipantsInput
+                  ref={participantsInputRef}
+                  value={threatModel?.participants || []}
+                  onSave={handleParticipantsChange}
+                  onNavigate={handleParticipantsNavigate}
+                  onTabPress={handleParticipantsTabPress}
                 />
               </div>
             </div>
           </div>
         
         {/* Tables Section */}
-        <AssetsTable
-          ref={assetsTableRef}
-          threatModel={threatModel}
-          onAssetNameChange={handleAssetNameChange}
-          onAssetDescriptionChange={handleAssetDescriptionChange}
-          onRemoveAsset={handleRemoveAsset}
-          onAddAsset={handleAddAsset}
-          onNavigateToNextTable={handleAssetsNavigateToNextTable}
-          onNavigateToPreviousTable={handleAssetsNavigateToPreviousTable}
-        />
+        <div className='tables-container-content'>
+        <h2 className="collapsible-section-header" onClick={() => setIsWorkingSectionCollapsed(!isWorkingSectionCollapsed)}>
+          <span>What are we working on?</span>
+          <span className="collapse-arrow">{isWorkingSectionCollapsed ? '▶' : '▼'}</span>
+        </h2>
+        {!isWorkingSectionCollapsed && (
+          <>
+            <ComponentsTable
+              ref={componentsTableRef}
+              threatModel={threatModel}
+              onComponentNameChange={handleComponentNameChange}
+              onComponentTypeChange={handleComponentTypeChange}
+              onComponentDescriptionChange={handleComponentDescriptionChange}
+              onComponentAssetsChange={handleComponentAssetsChange}
+              onCreateAsset={handleCreateAsset}
+              onRemoveComponent={handleRemoveComponent}
+              onAddComponent={(componentType) => handleAddComponent(componentType)}
+              onReorderComponents={handleReorderComponents}
+              onNavigateToNextTable={handleComponentsNavigateToNextTable}
+              onNavigateToPreviousTable={handleComponentsNavigateToPreviousTable}
+            />
 
-        <ThreatsTable
-          ref={threatsTableRef}
-          threatModel={threatModel}
-          onThreatNameChange={handleThreatNameChange}
-          onThreatDescriptionChange={handleThreatDescriptionChange}
-          onThreatAffectedComponentsChange={handleThreatAffectedComponentsChange}
-          onThreatAffectedDataFlowsChange={handleThreatAffectedDataFlowsChange}
-          onThreatAffectedAssetsChange={handleThreatAffectedAssetsChange}
-          onRemoveThreat={handleRemoveThreat}
-          onAddThreat={handleAddThreat}
-          onNavigateToNextTable={handleThreatsNavigateToNextTable}
-          onNavigateToPreviousTable={handleThreatsNavigateToPreviousTable}
-        />
-
-        <ControlsTable
-          ref={controlsTableRef}
-          threatModel={threatModel}
-          githubMetadata={githubMetadata ?? undefined}
-          onControlNameChange={handleControlNameChange}
-          onControlDescriptionChange={handleControlDescriptionChange}
-          onControlStatusChange={handleControlStatusChange}
-          onControlStatusLinkChange={handleControlStatusLinkChange}
-          onControlStatusNoteChange={handleControlStatusNoteChange}
-          onControlMitigatesChange={handleControlMitigatesChange}
-          onControlImplementedInChange={handleControlImplementedInChange}
-          onRemoveControl={handleRemoveControl}
-          onAddControl={handleAddControl}
-          onNavigateToNextTable={handleControlsNavigateToNextTable}
-          onNavigateToPreviousTable={handleControlsNavigateToPreviousTable}
-        />
-
-        {/* Collapsible Architecture Section */}
+            <AssetsTable
+              ref={assetsTableRef}
+              threatModel={threatModel}
+              onAssetNameChange={handleAssetNameChange}
+              onAssetDescriptionChange={handleAssetDescriptionChange}
+              onRemoveAsset={handleRemoveAsset}
+              onAddAsset={handleAddAsset}
+              onReorderAssets={handleReorderAssets}
+              onNavigateToNextTable={handleAssetsNavigateToNextTable}
+              onNavigateToPreviousTable={handleAssetsNavigateToPreviousTable}
+            />
         <ArchitectureSection
           ref={architectureSectionRef}
           threatModel={threatModel}
-          handleComponentNameChange={handleComponentNameChange}
-          handleComponentTypeChange={handleComponentTypeChange}
-          handleComponentDescriptionChange={handleComponentDescriptionChange}
-          handleComponentAssetsChange={handleComponentAssetsChange}
-          handleCreateAsset={handleCreateAsset}
           handleBoundaryNameChange={handleBoundaryNameChange}
           handleBoundaryDescriptionChange={handleBoundaryDescriptionChange}
           handleDataFlowDirectionChange={handleDataFlowDirectionChange}
           handleDataFlowLabelChange={handleDataFlowLabelChange}
-          handleRemoveComponent={handleRemoveComponent}
           handleRemoveBoundary={handleRemoveBoundary}
           handleRemoveDataFlow={handleRemoveDataFlow}
           onNavigateToPreviousTable={handleArchitectureNavigateToPreviousTable}
+          onNavigateToNextTable={handleArchitectureNavigateToNextTable}
         />
+          </>
+        )}
+
+        <div className="tables-divider"></div>
+        <h2 className="collapsible-section-header" onClick={() => setIsThreatsSectionCollapsed(!isThreatsSectionCollapsed)}>
+          <span>What can go wrong?</span>
+          <span className="collapse-arrow">{isThreatsSectionCollapsed ? '▶' : '▼'}</span>
+        </h2>
+        {!isThreatsSectionCollapsed && (
+          <ThreatsTable
+            ref={threatsTableRef}
+            threatModel={threatModel}
+            githubMetadata={githubMetadata ?? undefined}
+            onThreatNameChange={handleThreatNameChange}
+            onThreatDescriptionChange={handleThreatDescriptionChange}
+            onThreatAffectedComponentsChange={handleThreatAffectedComponentsChange}
+            onThreatAffectedDataFlowsChange={handleThreatAffectedDataFlowsChange}
+            onThreatAffectedAssetsChange={handleThreatAffectedAssetsChange}
+            onThreatStatusChange={handleThreatStatusChange}
+            onThreatStatusLinkChange={handleThreatStatusLinkChange}
+            onThreatStatusNoteChange={handleThreatStatusNoteChange}
+            onRemoveThreat={handleRemoveThreat}
+            onAddThreat={handleAddThreat}
+            onReorderThreats={handleReorderThreats}
+            onNavigateToNextTable={handleThreatsNavigateToNextTable}
+            onNavigateToPreviousTable={handleThreatsNavigateToPreviousTable}
+          />
+        )}
+        <div className="tables-divider"></div>
+        <h2 className="collapsible-section-header" onClick={() => setIsControlsSectionCollapsed(!isControlsSectionCollapsed)}>
+          <span>What are we going to do about it?</span>
+          <span className="collapse-arrow">{isControlsSectionCollapsed ? '▶' : '▼'}</span>
+        </h2>
+        {!isControlsSectionCollapsed && (
+          <ControlsTable
+            ref={controlsTableRef}
+            threatModel={threatModel}
+            githubMetadata={githubMetadata ?? undefined}
+            onControlNameChange={handleControlNameChange}
+            onControlDescriptionChange={handleControlDescriptionChange}
+            onControlStatusChange={handleControlStatusChange}
+            onControlStatusLinkChange={handleControlStatusLinkChange}
+            onControlStatusNoteChange={handleControlStatusNoteChange}
+            onControlMitigatesChange={handleControlMitigatesChange}
+            onControlImplementedInChange={handleControlImplementedInChange}
+            onRemoveControl={handleRemoveControl}
+            onAddControl={handleAddControl}
+            onReorderControls={handleReorderControls}
+            onNavigateToPreviousTable={handleControlsNavigateToPreviousTable}
+          />
+        )}
+        <div className="tables-divider"></div>
+        <h2 className="collapsible-section-header" onClick={() => setIsSummarySectionCollapsed(!isSummarySectionCollapsed)}>
+          <span>Did we do a good job?</span>
+          <span className="collapse-arrow">{isSummarySectionCollapsed ? '▶' : '▼'}</span>
+        </h2>
+        {!isSummarySectionCollapsed && (
+          <SummarySection 
+            threatModel={threatModel} 
+            threatsTableRef={threatsTableRef}
+            controlsTableRef={controlsTableRef}
+            onExpandThreatsSection={() => setIsThreatsSectionCollapsed(false)}
+            onExpandControlsSection={() => setIsControlsSectionCollapsed(false)}
+          />
+        )}
+        </div>
+
         </>
         )}
       </div>
@@ -2972,7 +3608,7 @@ export default function ThreatModelEditor({
             selectionOnDrag={!isEditingMode && !justExitedEditModeRef.current}
             selectionMode={SelectionMode.Partial}
             disableKeyboardA11y={true}
-            multiSelectionKeyCode="Shift"
+            multiSelectionKeyCode={['Meta', 'Control']}
             deleteKeyCode={creationState.phase === 'idle' && reconnectionState.phase === 'idle' ? ['Backspace', 'Delete'] : null}
             onInit={(instance) => {
               reactFlowInstanceRef.current = instance;
@@ -2999,6 +3635,16 @@ export default function ThreatModelEditor({
         <DiscardModal
           onConfirm={handleDiscardConfirm}
           onCancel={handleDiscardCancel}
+        />
+      )}
+
+      {/* External file change conflict modal */}
+      {showExternalChangeModal && (
+        <ExternalChangeModal
+          fileName={localFileName || 'file'}
+          onKeepMine={handleKeepMyChanges}
+          onLoadExternal={handleLoadExternalChanges}
+          onSaveAs={handleSaveAsAndLoadExternal}
         />
       )}
 

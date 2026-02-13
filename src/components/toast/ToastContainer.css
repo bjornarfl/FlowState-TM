@@ -122,20 +122,18 @@
 }
 
 /* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .toast {
-    background: #1f2937;
-  }
+[data-theme="dark"] .toast {
+  background: #1f2937;
+}
 
-  .toast-message {
-    color: #f3f4f6;
-  }
+[data-theme="dark"] .toast-message {
+  color: #f3f4f6;
+}
 
-  .toast-dismiss {
-    color: #9ca3af;
-  }
+[data-theme="dark"] .toast-dismiss {
+  color: #9ca3af;
+}
 
-  .toast-dismiss:hover {
-    color: #f3f4f6;
-  }
+[data-theme="dark"] .toast-dismiss:hover {
+  color: #f3f4f6;
 }

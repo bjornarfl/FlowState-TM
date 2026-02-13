@@ -1,0 +1,427 @@
+.summary-section {
+  padding: 16px 0;
+}
+
+.summary-empty-state {
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 24px;
+  text-align: center;
+}
+
+.summary-subsection {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.summary-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.summary-subsection-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.summary-subsection-title svg {
+  color: var(--accent-blue);
+}
+
+/* Core Completeness Stats Grid */
+.summary-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.summary-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.summary-stat-icon {
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.summary-stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.summary-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.summary-stat-value.summary-stat-warning {
+  color: rgb(234, 179, 8);
+}
+
+/* Coverage & Mitigation Metrics */
+.summary-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary-metric-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-metric-expandable {
+  cursor: pointer;
+  padding: 8px;
+  margin: -8px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.summary-metric-expandable:hover {
+  background-color: var(--bg-secondary);
+}
+
+.summary-metric-header-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.summary-metric-header-content svg {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.summary-metric-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.summary-metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 16px;
+}
+
+.summary-metric-main {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.summary-metric-percentage {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.summary-progress-bar {
+  height: 8px;
+  background-color: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+.summary-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  transition: width 0.3s ease, background 0.3s ease;
+  min-width: 2px;
+}
+
+.summary-progress-fill-warning {
+  height: 100%;
+  background: linear-gradient(90deg, #eab308, #fbbf24);
+  transition: width 0.3s ease, background 0.3s ease;
+  min-width: 2px;
+}
+
+.summary-progress-fill-complete {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+  transition: width 0.3s ease, background 0.3s ease;
+  min-width: 2px;
+}
+
+/* Expandable Metric Details */
+.summary-metric-details {
+  padding: 12px 16px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.summary-metric-detail-section {
+  margin-bottom: 12px;
+}
+
+.summary-metric-detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.summary-metric-detail-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.summary-metric-items-list {
+  margin: 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.summary-metric-items-list li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 3px;
+}
+
+.summary-metric-items-list li:last-child {
+  margin-bottom: 0;
+}
+
+.summary-metric-items-list .summary-clickable-item:hover {
+  color: var(--accent-blue);
+}
+
+/* Status Distribution */
+.summary-distribution-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.summary-distribution-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.summary-distribution-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.summary-distribution-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-distribution-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.summary-distribution-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* Status Badges */
+.summary-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.summary-status-evaluate {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: rgb(59, 130, 246);
+}
+
+.summary-status-mitigate {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: rgb(34, 197, 94);
+}
+
+.summary-status-accept {
+  background-color: rgba(234, 179, 8, 0.15);
+  color: rgb(234, 179, 8);
+}
+
+.summary-status-dismiss {
+  background-color: rgba(156, 163, 175, 0.15);
+  color: rgb(156, 163, 175);
+}
+
+.summary-status-todo {
+  background-color: rgba(156, 163, 175, 0.15);
+  color: rgb(156, 163, 175);
+}
+
+.summary-status-inprogress {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: rgb(59, 130, 246);
+}
+
+.summary-status-done {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: rgb(34, 197, 94);
+}
+
+.summary-status-cancelled {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: rgb(239, 68, 68);
+}
+
+.summary-status-none {
+  background-color: rgba(156, 163, 175, 0.1);
+  color: var(--text-secondary);
+}
+
+/* Action Items */
+.summary-action-items {
+  border-left: 3px solid rgba(234, 179, 8, 0.5);
+  background-color: rgba(234, 179, 8, 0.05);
+}
+
+.summary-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.summary-action-icon {
+  color: rgba(234, 179, 8, 1);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.summary-action-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.summary-action-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.summary-action-text strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.summary-action-items-list {
+  margin: 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.summary-action-items-list li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.summary-action-items-list li:last-child {
+  margin-bottom: 0;
+}
+
+.summary-clickable-item {
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.summary-clickable-item:hover {
+  color: var(--accent-blue);
+  text-decoration: underline;
+}
+
+.summary-clickable-item:active {
+  transform: translateX(2px);
+}
+
+/* All Good State */
+.summary-all-good {
+  border-left: 3px solid rgba(34, 197, 94, 0.5);
+  background-color: rgba(34, 197, 94, 0.05);
+}
+
+.summary-all-good-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.summary-all-good-icon {
+  color: rgb(34, 197, 94);
+}
+
+.summary-all-good-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .summary-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  }
+
+  .summary-distribution-grid {
+    grid-template-columns: 1fr;
+  }
+}

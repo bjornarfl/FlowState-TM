@@ -5,6 +5,7 @@ import {
   Position,
 } from '@xyflow/react';
 import type { EditableEdgeData } from '../../utils/flowTransformer';
+import { isDataFlowLabelPlaceholder } from '../../utils/refGenerators';
 import './EditableEdge.css';
 
 interface EditableEdgeProps {
@@ -33,7 +34,9 @@ export default function EditableEdge({
   selected,
 }: EditableEdgeProps): React.JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState((label as string | null | undefined) || '');
+  const labelString = (label as string | null | undefined) || '';
+  const isPlaceholder = isDataFlowLabelPlaceholder(labelString);
+  const [editValue, setEditValue] = useState(isPlaceholder ? '' : labelString);
   const { onLabelChange, direction, onEditModeChange, onToggleDirectionAndReverse, edgeRef, initialEditMode } = data;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasProcessedInitialEditMode = useRef(false);
@@ -42,7 +45,9 @@ export default function EditableEdge({
   useEffect(() => {
     if (initialEditMode && !hasProcessedInitialEditMode.current) {
       setIsEditing(true);
-      setEditValue((label as string) || '');
+      const labelString = (label as string) || '';
+      const isPlaceholder = isDataFlowLabelPlaceholder(labelString);
+      setEditValue(isPlaceholder ? '' : labelString);
       onEditModeChange?.(true);
       hasProcessedInitialEditMode.current = true;
     }
@@ -107,15 +112,21 @@ export default function EditableEdge({
     // Only enter edit mode if edge is already selected
     if (selected) {
       setIsEditing(true);
-      setEditValue((label as string) || '');
+      const labelString = (label as string) || '';
+      const isPlaceholder = isDataFlowLabelPlaceholder(labelString);
+      setEditValue(isPlaceholder ? '' : labelString);
       onEditModeChange?.(true);
     }
     // If not selected, the click will propagate and select the edge
   };
 
   const handleSave = (): void => {
-    if (editValue.trim() && editValue !== label) {
-      onLabelChange?.(edgeRef || id, editValue);
+    const labelString = (label as string) || '';
+    const isPlaceholder = isDataFlowLabelPlaceholder(labelString);
+    const newValueToSave = editValue.trim() ? editValue : labelString;
+    
+    if (newValueToSave !== label) {
+      onLabelChange?.(edgeRef || id, newValueToSave);
     }
     setIsEditing(false);
     onEditModeChange?.(false);
@@ -170,6 +181,7 @@ export default function EditableEdge({
               ref={textareaRef}
               className="editable-edge-label-input"
               value={editValue}
+              placeholder={isPlaceholder ? labelString : undefined}
               onChange={(e) => {
                 setEditValue(e.target.value);
                 // Auto-resize on text change

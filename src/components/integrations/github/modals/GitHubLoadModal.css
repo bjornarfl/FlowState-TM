@@ -200,6 +200,23 @@
   cursor: not-allowed;
 }
 
+.files-path-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.files-path-hint code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  background: var(--bg-secondary);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+}
+
 .github-files-list {
   flex: 1;
   border: 1px solid var(--border-color);
@@ -252,9 +269,21 @@
 
 .github-file-item .file-name {
   flex: 1;
+  display: flex;
+  align-items: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.github-file-item .file-subfolder {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 /* Spin animation */

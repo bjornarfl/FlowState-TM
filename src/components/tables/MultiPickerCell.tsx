@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Plus } from 'lucide-react';
 import './MultiPickerCell.css';
 import EditablePicker, { PickerItem } from './EditablePicker';
 import { usePortalPosition } from '../../hooks/usePortalPosition';
@@ -51,6 +52,31 @@ export default function MultiPickerCell({
   });
 
   const totalCount = sections.reduce((sum, section) => sum + section.value.length, 0);
+
+  // Handle Escape key at document level when portal is open
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const handleEscapeKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        // Check if the escape came from within a picker input (editing mode)
+        const target = e.target as HTMLElement;
+        const isPickerInput = target.classList.contains('picker-tag-input');
+        
+        // Only close the portal if we're NOT in a picker's edit mode
+        if (!isPickerInput) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleClose();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey, true);
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey, true);
+    };
+  }, [isExpanded]);
 
   // Auto-focus the first section when expanded
   useEffect(() => {
@@ -155,12 +181,9 @@ export default function MultiPickerCell({
     }
   };
 
-  const handleExpandedKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      handleClose();
-    }
+  const handleDialogBlur = (e: React.FocusEvent): void => {
+    // Don't close if focus moved to another element within the dialog
+    e.stopPropagation();
   };
 
   useClickOutside(
@@ -177,11 +200,6 @@ export default function MultiPickerCell({
     100
   );
 
-  const handleDialogBlur = (e: React.FocusEvent): void => {
-    // Don't close if focus moved to another element within the dialog
-    e.stopPropagation();
-  };
-
   // Generate badge class name based on variant
   const getBadgeClass = (section: PickerSection): string => {
     if (section.badgeClass) return section.badgeClass;
@@ -193,20 +211,44 @@ export default function MultiPickerCell({
       {!isExpanded ? (
         <div className="multi-picker-compact" onClick={() => setIsExpanded(true)}>
           {totalCount === 0 ? (
-            <span className="no-items-text">-</span>
+            <div className="multi-picker-empty-button" title="Add related items">
+              <Plus size={12} />
+            </div>
           ) : (
             <div className="multi-picker-summary">
-              {sections.map((section, index) => 
-                section.value.length > 0 ? (
-                  <span
-                    key={index}
-                    className={`multi-picker-badge ${getBadgeClass(section)}`}
-                    title={`${section.value.length} ${section.label.toLowerCase()}`}
-                  >
-                    {section.value.length}
-                  </span>
-                ) : null
-              )}
+              {(() => {
+                // Combine assets and components into one sum
+                const assetsAndComponentsCount = sections
+                  .filter(s => s.variant === 'assets' || s.variant === 'components')
+                  .reduce((sum, s) => sum + s.value.length, 0);
+                
+                // Get other sections
+                const otherSections = sections.filter(s => s.variant !== 'assets' && s.variant !== 'components');
+                
+                return (
+                  <>
+                    {assetsAndComponentsCount > 0 && (
+                      <span
+                        className="multi-picker-badge badge-components"
+                        title={`${assetsAndComponentsCount} assets/components`}
+                      >
+                        {assetsAndComponentsCount}
+                      </span>
+                    )}
+                    {otherSections.map((section, index) => 
+                      section.value.length > 0 ? (
+                        <span
+                          key={index}
+                          className={`multi-picker-badge ${getBadgeClass(section)}`}
+                          title={`${section.value.length} ${section.label.toLowerCase()}`}
+                        >
+                          {section.value.length}
+                        </span>
+                      ) : null
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -227,7 +269,6 @@ export default function MultiPickerCell({
               maxWidth: `${position.maxWidth}px`,
             }}
             onBlur={handleDialogBlur}
-            onKeyDown={handleExpandedKeyDown}
           >
             <div className="multi-picker-header">
               <span className="multi-picker-title">{title}</span>

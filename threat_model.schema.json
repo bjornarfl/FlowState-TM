@@ -20,6 +20,14 @@
       "type": "string",
       "description": "Description of the threat model"
     },
+    "participants": {
+      "type": "array",
+      "description": "List of participants involved in the threat model (e.g. names or email addresses)",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "assets": {
       "type": "array",
       "description": "Data or resources that need protection",
@@ -244,6 +252,19 @@
           "items": {
             "type": "string"
           }
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the threat (how it will be handled)",
+          "enum": ["Mitigate", "Accept", "Dismiss", "Evaluate"]
+        },
+        "status_link": {
+          "type": "string",
+          "description": "URL pointing to a work item for handling this threat (e.g., Jira task)"
+        },
+        "status_note": {
+          "type": "string",
+          "description": "Additional notes about the threat status and how it will be handled"
         }
       }
     },

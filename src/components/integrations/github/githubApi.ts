@@ -15,7 +15,16 @@ import type {
   GitHubCreateIssueRequest,
   GitHubError,
   PaginationInfo,
+  GitRef,
+  GitCommit,
+  GitBlob,
+  GitTree,
+  GitTreeItem,
+  CommitFile,
+  GitHubAction,
+  TokenValidationResult,
 } from './types';
+import { CLASSIC_REQUIRED_SCOPES } from './types';
 import type { GitHubDomain } from './githubDomains.config';
 import { API_BASE_URLS, buildDomainRegexPattern, isValidDomain } from './githubDomains.config';
 import { touchPat } from './patStorage';
@@ -330,7 +339,7 @@ export class GitHubApiClient {
   }
 
   /**
-   * List threat model files in /.threat-models directory
+   * List threat model files in /.threat-models directory (including subfolders)
    */
   async listThreatModels(
     owner: string,
@@ -338,23 +347,7 @@ export class GitHubApiClient {
     ref?: string
   ): Promise<GitHubContent[]> {
     try {
-      const contents = await this.getContents(
-        owner,
-        repo,
-        '.threat-models',
-        ref
-      );
-
-      if (!Array.isArray(contents)) {
-        return [];
-      }
-
-      // Filter for YAML files only
-      return contents.filter(
-        (item) =>
-          item.type === 'file' &&
-          (item.name.endsWith('.yaml') || item.name.endsWith('.yml'))
-      );
+      return await this.listThreatModelsRecursive(owner, repo, '.threat-models', ref);
     } catch (error) {
       if (error instanceof GitHubApiError && error.status === 404) {
         // Directory doesn't exist
@@ -362,6 +355,50 @@ export class GitHubApiClient {
       }
       throw error;
     }
+  }
+
+  /**
+   * Recursively list YAML files in a directory and its subdirectories
+   */
+  private async listThreatModelsRecursive(
+    owner: string,
+    repo: string,
+    path: string,
+    ref?: string
+  ): Promise<GitHubContent[]> {
+    const contents = await this.getContents(owner, repo, path, ref);
+
+    if (!Array.isArray(contents)) {
+      return [];
+    }
+
+    const files: GitHubContent[] = [];
+
+    // Collect subdirectories to recurse into
+    const subdirs = contents.filter((item) => item.type === 'dir');
+
+    // Collect YAML files at this level
+    for (const item of contents) {
+      if (
+        item.type === 'file' &&
+        (item.name.endsWith('.yaml') || item.name.endsWith('.yml'))
+      ) {
+        files.push(item);
+      }
+    }
+
+    // Recurse into subdirectories in parallel
+    const subResults = await Promise.all(
+      subdirs.map((dir) =>
+        this.listThreatModelsRecursive(owner, repo, dir.path, ref)
+      )
+    );
+
+    for (const result of subResults) {
+      files.push(...result);
+    }
+
+    return files;
   }
 
   /**
@@ -430,6 +467,181 @@ export class GitHubApiClient {
   }
 
   // ============================================================
+  // Git Data API endpoints (for multi-file atomic commits)
+  // ============================================================
+
+  /**
+   * Get a git reference (branch/tag)
+   */
+  async getRef(
+    owner: string,
+    repo: string,
+    ref: string
+  ): Promise<GitRef> {
+    return this.request<GitRef>(
+      `/repos/${owner}/${repo}/git/ref/${ref}`
+    );
+  }
+
+  /**
+   * Get a git commit by SHA
+   */
+  async getGitCommit(
+    owner: string,
+    repo: string,
+    sha: string
+  ): Promise<GitCommit> {
+    return this.request<GitCommit>(
+      `/repos/${owner}/${repo}/git/commits/${sha}`
+    );
+  }
+
+  /**
+   * Create a blob (for binary or large content)
+   */
+  async createBlob(
+    owner: string,
+    repo: string,
+    content: string,
+    encoding: 'utf-8' | 'base64' = 'utf-8'
+  ): Promise<GitBlob> {
+    return this.request<GitBlob>(
+      `/repos/${owner}/${repo}/git/blobs`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ content, encoding }),
+      }
+    );
+  }
+
+  /**
+   * Create a new tree
+   */
+  async createTree(
+    owner: string,
+    repo: string,
+    tree: GitTreeItem[],
+    baseTree?: string
+  ): Promise<GitTree> {
+    const body: Record<string, unknown> = { tree };
+    if (baseTree) {
+      body.base_tree = baseTree;
+    }
+    return this.request<GitTree>(
+      `/repos/${owner}/${repo}/git/trees`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    );
+  }
+
+  /**
+   * Create a new commit
+   */
+  async createGitCommit(
+    owner: string,
+    repo: string,
+    message: string,
+    tree: string,
+    parents: string[]
+  ): Promise<GitCommit> {
+    return this.request<GitCommit>(
+      `/repos/${owner}/${repo}/git/commits`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ message, tree, parents }),
+      }
+    );
+  }
+
+  /**
+   * Update a git reference to point to a new commit
+   */
+  async updateRef(
+    owner: string,
+    repo: string,
+    ref: string,
+    sha: string,
+    force: boolean = false
+  ): Promise<GitRef> {
+    return this.request<GitRef>(
+      `/repos/${owner}/${repo}/git/refs/${ref}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ sha, force }),
+      }
+    );
+  }
+
+  /**
+   * Create an atomic commit with multiple files.
+   * Uses the Git Data API to bundle all files into a single commit.
+   *
+   * Flow:
+   * 1. Get the branch ref → base commit SHA
+   * 2. Get the base commit → base tree SHA
+   * 3. Create blobs for binary files (base64 content)
+   * 4. Create a new tree with all files
+   * 5. Create a new commit pointing to the new tree
+   * 6. Update the branch ref to the new commit
+   */
+  async createMultiFileCommit(
+    owner: string,
+    repo: string,
+    branch: string,
+    message: string,
+    files: CommitFile[]
+  ): Promise<{ commitSha: string; commitUrl: string }> {
+    // 1. Get the branch reference
+    const ref = await this.getRef(owner, repo, `heads/${branch}`);
+    const baseCommitSha = ref.object.sha;
+
+    // 2. Get the base commit to find its tree
+    const baseCommit = await this.getGitCommit(owner, repo, baseCommitSha);
+    const baseTreeSha = baseCommit.tree.sha;
+
+    // 3. Build tree items — create blobs for binary (base64) content
+    const treeItems: GitTreeItem[] = [];
+    for (const file of files) {
+      if (file.isBase64) {
+        // Binary content: create a blob first, then reference it by SHA
+        const blob = await this.createBlob(owner, repo, file.content, 'base64');
+        treeItems.push({
+          path: file.path,
+          mode: '100644',
+          type: 'blob',
+          sha: blob.sha,
+        });
+      } else {
+        // Text content: can be inlined via content property
+        treeItems.push({
+          path: file.path,
+          mode: '100644',
+          type: 'blob',
+          content: file.content,
+        });
+      }
+    }
+
+    // 4. Create a new tree based on the existing tree
+    const newTree = await this.createTree(owner, repo, treeItems, baseTreeSha);
+
+    // 5. Create a new commit
+    const newCommit = await this.createGitCommit(
+      owner, repo, message, newTree.sha, [baseCommitSha]
+    );
+
+    // 6. Update the branch reference
+    await this.updateRef(owner, repo, `heads/${branch}`, newCommit.sha);
+
+    return {
+      commitSha: newCommit.sha,
+      commitUrl: newCommit.html_url || `https://${this.domain}/${owner}/${repo}/commit/${newCommit.sha}`,
+    };
+  }
+
+  // ============================================================
   // Utility methods
   // ============================================================
 
@@ -443,6 +655,139 @@ export class GitHubApiClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Validate token and verify it has the required permissions for a given action.
+   *
+   * For classic PATs: checks the X-OAuth-Scopes response header.
+   * For fine-grained PATs: performs targeted test API calls to verify permissions.
+   */
+  async validateTokenForAction(action: GitHubAction): Promise<TokenValidationResult> {
+    try {
+      // Step 1: Call /user and capture response headers
+      const { data: user, headers } = await this.requestWithHeaders<GitHubUser>('/user');
+
+      const oauthScopes = headers.get('X-OAuth-Scopes');
+
+      if (oauthScopes !== null) {
+        // Classic PAT — scopes are listed in the header
+        return this.validateClassicTokenScopes(action, user, oauthScopes);
+      } else {
+        // Fine-grained PAT (or GitHub App token) — no scopes header
+        return this.validateFineGrainedTokenPermissions(action, user);
+      }
+    } catch (err) {
+      if (err instanceof GitHubApiError && err.status === 401) {
+        return {
+          valid: false,
+          missingPermissions: ['Valid authentication — token may be expired or revoked'],
+          tokenType: 'unknown',
+        };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Check classic PAT scopes from the X-OAuth-Scopes header
+   */
+  private validateClassicTokenScopes(
+    action: GitHubAction,
+    user: GitHubUser,
+    oauthScopesHeader: string
+  ): TokenValidationResult {
+    const grantedScopes = oauthScopesHeader
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const requirements = CLASSIC_REQUIRED_SCOPES[action];
+    const missing: string[] = [];
+
+    for (const acceptableScopes of requirements) {
+      // At least one of the acceptable scopes must be present
+      const hasSome = acceptableScopes.some((scope) => grantedScopes.includes(scope));
+      if (!hasSome) {
+        missing.push(acceptableScopes.join(' or '));
+      }
+    }
+
+    return {
+      valid: missing.length === 0,
+      user,
+      missingPermissions: missing.length > 0
+        ? missing.map((m) => `Missing scope: ${m}`)
+        : [],
+      tokenType: 'classic',
+    };
+  }
+
+  /**
+   * Verify fine-grained PAT permissions by making targeted test API calls.
+   * Fine-grained tokens don't expose scopes via headers, so we probe endpoints.
+   */
+  private async validateFineGrainedTokenPermissions(
+    action: GitHubAction,
+    user: GitHubUser
+  ): Promise<TokenValidationResult> {
+    const missing: string[] = [];
+
+    // Determine which permissions need testing based on the action
+    const needsContentsRead = ['load', 'commit', 'sync'].includes(action);
+    const needsContentsWrite = action === 'commit';
+    const needsIssuesRead = action === 'sync';
+    const needsIssuesWrite = action === 'create-issue';
+
+    // Test Contents:Read by listing repos and then trying to list branches
+    if (needsContentsRead || needsContentsWrite) {
+      try {
+        // First, check we can list repos at all (needs at least Metadata:Read)
+        const repos = await this.request<GitHubRepository[]>(
+          '/user/repos?per_page=1&sort=updated'
+        );
+
+        if (repos.length > 0) {
+          // Try listing branches on the first repo — requires Contents:Read
+          try {
+            await this.request(
+              `/repos/${repos[0].owner.login}/${repos[0].name}/branches?per_page=1`
+            );
+          } catch (err) {
+            if (err instanceof GitHubApiError && (err.status === 403 || err.status === 404)) {
+              missing.push('Contents (Read) — token cannot read repository contents');
+            }
+          }
+        } else {
+          // No repos accessible at all — token lacks repository permissions
+          missing.push('Contents (Read) — token has no access to any repositories');
+        }
+      } catch (err) {
+        if (err instanceof GitHubApiError && err.status === 403) {
+          missing.push('Metadata (Read) — no repository access');
+        } else {
+          missing.push('Contents (Read) — could not verify repository access');
+        }
+      }
+    }
+
+    // We can't reliably pre-test write permissions or issue permissions
+    // without side effects, so we just flag them as warnings if relevant
+    if (needsContentsWrite && !missing.includes('Contents (Read)')) {
+      // Can't test write without actually writing — skip, will fail at commit time
+    }
+
+    if (needsIssuesRead || needsIssuesWrite) {
+      // Issues permissions are repo-specific and can't be tested globally.
+      // We'll let it fail at call time with a clear error.
+    }
+
+    return {
+      valid: missing.length === 0,
+      user,
+      missingPermissions: missing,
+      tokenType: 'fine-grained',
+    };
   }
 
   /**

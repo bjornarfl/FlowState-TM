@@ -27,7 +27,7 @@ th.status-column-th {
   gap: 0;
   border-radius: 50%;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
   transition: all 0.15s;
 }
 
@@ -62,6 +62,11 @@ th.status-column-th {
   color: white;
 }
 
+.status-button-group.status-yellow {
+  background: #ffc107;
+  color: #424242;
+}
+
 .status-button-group.status-red {
   background: #f44336;
   color: white;
@@ -85,6 +90,11 @@ th.status-column-th {
 
 [data-theme="dark"] .status-button-group.status-green {
   background: #2e7d32;
+  color: white;
+}
+
+[data-theme="dark"] .status-button-group.status-yellow {
+  background: #f57f17;
   color: white;
 }
 
@@ -121,7 +131,7 @@ th.status-column-th {
 
 /* When link button exists, add divider and padding */
 .status-button-group:has(.link-button-area) .status-button-area {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid var(--border-color);
   padding: 6px 8px 7px 8px;
 }
 
@@ -144,7 +154,7 @@ th.status-column-th {
 /* Portal styles */
 .status-picker-portal {
   background: var(--bg-primary, white);
-  border: 2px solid #15803d;
+  border: 2px solid var(--status-picker-border-color, #15803d);
   border-radius: 6px;
   box-shadow: 0 8px 16px var(--shadow-strong, rgba(0, 0, 0, 0.15));
   z-index: 10000;
@@ -154,6 +164,21 @@ th.status-column-th {
   overflow-x: hidden;
   box-sizing: border-box;
   animation: statusPopupFadeIn 0.15s ease-out;
+}
+
+/* Variant-specific styling using entity color variables from App.css */
+.status-picker-portal.status-picker-controls {
+  --status-picker-border-color: var(--entity-controls-border);
+  --status-picker-title-color: var(--entity-controls-border);
+  --status-picker-close-bg: var(--entity-controls-bg);
+  --status-picker-close-text: var(--entity-controls-text);
+}
+
+.status-picker-portal.status-picker-threats {
+  --status-picker-border-color: var(--entity-threats-border);
+  --status-picker-title-color: var(--entity-threats-border);
+  --status-picker-close-bg: var(--entity-threats-bg);
+  --status-picker-close-text: var(--entity-threats-text);
 }
 
 @keyframes statusPopupFadeIn {
@@ -195,7 +220,7 @@ th.status-column-th {
 .status-picker-title {
   font-size: 13px;
   font-weight: 700;
-  color: #15803d;
+  color: var(--status-picker-title-color, #15803d);
   margin: 0;
 }
 
@@ -211,13 +236,13 @@ th.status-column-th {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  background: #bbf7d0;
-  color: #15803d;
+  background: var(--status-picker-close-bg);
+  color: var(--status-picker-close-text);
 }
 
 .status-picker-close:hover {
-  background: #15803d;
-  color: white;
+  background: var(--status-picker-close-text);
+  color: var(--status-picker-close-bg)
 }
 
 .status-picker-content {
@@ -287,6 +312,11 @@ th.status-column-th {
   color: white;
 }
 
+.status-option.status-yellow {
+  background: #ffc107;
+  color: #424242;
+}
+
 .status-option.status-red {
   background: #f44336;
   color: white;
@@ -305,6 +335,11 @@ th.status-column-th {
 
 [data-theme="dark"] .status-option.status-green {
   background: #2e7d32;
+  color: white;
+}
+
+[data-theme="dark"] .status-option.status-yellow {
+  background: #f57f17;
   color: white;
 }
 
@@ -409,8 +444,8 @@ th.status-column-th {
   color: var(--text-primary, #333);
   background: var(--bg-primary, white);
   transition: border-color 0.15s;
-  resize: vertical;
   min-height: 80px;
+  resize: none;
 }
 
 .status-note-textarea:focus {
