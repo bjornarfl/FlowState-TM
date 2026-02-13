@@ -16,7 +16,7 @@ export interface TemplateMetadata {
 export const loadTemplateByPath = async (
   path: string
 ): Promise<string> => {
-  const response = await fetch(`/${path}`);
+  const response = await fetch(`${import.meta.env.BASE_URL}${path}`);
   if (!response.ok) {
     throw new Error(
       `Failed to load template from ${path}: ${response.statusText}`
