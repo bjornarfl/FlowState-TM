@@ -28,7 +28,7 @@ assets:
 components:
   - ref: client
     name: Client Application
-    component_type: external_dependency
+    component_type: external
     x: -411
     y: -10
     description: Web or mobile application making requests to the serverless backend
@@ -99,7 +99,7 @@ components:
 
   - ref: external_api
     name: External API
-    component_type: external_dependency
+    component_type: external
     x: 333
     y: -106
     description: Third-party APIs consumed by serverless functions

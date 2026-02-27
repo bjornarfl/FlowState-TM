@@ -28,7 +28,7 @@ assets:
 components:
   - ref: iot_devices
     name: IoT Devices
-    component_type: external_dependency
+    component_type: external
     x: -366
     y: 118
     description: Edge devices with sensors and actuators deployed in the field (sensors, smart meters, industrial equipment)
@@ -36,7 +36,7 @@ components:
 
   - ref: edge_gateway
     name: Edge Gateway
-    component_type: external_dependency
+    component_type: external
     x: -366
     y: 0
     description: Local gateway aggregating data from multiple devices and providing edge processing
@@ -108,7 +108,7 @@ components:
 
   - ref: web_app
     name: Web Application
-    component_type: external_dependency
+    component_type: external
     x: 538
     y: 63
     description: User interface for monitoring devices and viewing data

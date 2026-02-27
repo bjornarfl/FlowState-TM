@@ -19,7 +19,7 @@ assets:
 components:
   - ref: user
     name: User
-    component_type: external_dependency
+    component_type: external
     description: End user accessing the application
     x: 0
     y: 0

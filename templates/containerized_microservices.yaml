@@ -28,7 +28,7 @@ assets:
 components:
   - ref: external_users
     name: External Users
-    component_type: external_dependency
+    component_type: external
     x: -517
     y: 72
     description: End users accessing the application through web or mobile clients
@@ -107,7 +107,7 @@ components:
 
   - ref: cicd_pipeline
     name: CI/CD Pipeline
-    component_type: external_dependency
+    component_type: external
     x: -20
     y: -294
     description: Automated pipeline building, scanning, and deploying container images to the cluster

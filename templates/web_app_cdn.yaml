@@ -24,14 +24,14 @@ assets:
 components:
   - ref: end_users
     name: End Users
-    component_type: external_dependency
+    component_type: external
     x: -383
     y: -183
     description: Users accessing the web application through their browsers
 
   - ref: cdn
     name: Content Delivery Network
-    component_type: external_dependency
+    component_type: external
     x: -385
     y: -55
     description: CDN caching and delivering static content (CloudFront, Cloudflare, Akamai)
@@ -79,7 +79,7 @@ components:
 
   - ref: admin_users
     name: Admin Users
-    component_type: external_dependency
+    component_type: external
     x: -116
     y: -277
     description: Administrators managing the application and infrastructure

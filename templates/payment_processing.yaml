@@ -24,7 +24,7 @@ assets:
 components:
   - ref: customer
     name: Customer
-    component_type: external_dependency
+    component_type: external
     x: -609
     y: 15
     description: User making a purchase and providing payment information
@@ -55,7 +55,7 @@ components:
 
   - ref: payment_gateway
     name: Payment Gateway
-    component_type: external_dependency
+    component_type: external
     x: -341
     y: -247
     description: Third-party payment processor (Stripe, PayPal, Adyen) handling card data
@@ -63,7 +63,7 @@ components:
 
   - ref: fraud_detection
     name: Fraud Detection Service
-    component_type: external_dependency
+    component_type: external
     x: 198
     y: -1
     description: Service analyzing transactions for fraud patterns and risk scoring
