@@ -35,3 +35,5 @@ jobs:
         run: npm run deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_BASE_PATH: /FlowState-TM/
+          VITE_REPO_URL: https://github.com/bjornarfl/FlowState-TM

@@ -1,0 +1,93 @@
+{
+  "tutorials": [
+    {
+      "id": "what-is-threat-modeling",
+      "title": "What is Threat Modeling?",
+      "file": "what-is-threat-modeling.md",
+      "description": "Understand the fundamentals of threat modeling and why it matters",
+      "category": "Threat Modeling 101",
+      "order": 0,
+      "duration": "4 min"
+    },
+    {
+      "id": "data-flow-diagrams",
+      "title": "Data Flow Diagrams",
+      "file": "data-flow-diagrams.md",
+      "description": "Learn how to create DFDs to visualize and analyze data flows",
+      "category": "Threat Modeling 101",
+      "order": 1,
+      "duration": "5 min"
+    },
+    {
+      "id": "stride",
+      "title": "STRIDE",
+      "file": "stride.md",
+      "description": "Learn how STRIDE can help you brainstorm threats",
+      "category": "Threat Modeling 101",
+      "order": 2,
+      "duration": "8 min"
+    },
+    {
+      "id": "exploring-the-interface",
+      "title": "Exploring the Interface",
+      "file": "exploring-the-interface.md",
+      "description": "A visual walkthrough of the Canvas, Tables, and YAML views",
+      "category": "Using FlowState",
+      "order": 3,
+      "duration": "3 min"
+    },
+    {
+      "id": "managing-threat-models",
+      "title": "Managing your Threat Models",
+      "file": "managing-threat-models.md",
+      "description": "Learn how to load, save, backup, and manage your threat model files",
+      "category": "Using FlowState",
+      "order": 4,
+      "duration": "5 min"
+    },
+    {
+      "id": "keyboard-shortcuts",
+      "title": "Keyboard Shortcuts & Hotkeys",
+      "file": "keyboard-shortcuts.md",
+      "description": "Master keyboard shortcuts to speed up your workflow",
+      "category": "Using FlowState",
+      "order": 5,
+      "duration": "3 min"
+    },
+    {
+      "id": "github-integration",
+      "title": "GitHub Integration",
+      "file": "github-integration.md",
+      "description": "Learn how to integrate FlowState with GitHub for version control and collaboration",
+      "category": "Advanced",
+      "order": 6,
+      "duration": "8 min"
+    },
+    {
+      "id": "ai-assisted-threat-modeling",
+      "title": "AI-Assisted Threat Modeling",
+      "file": "ai-assisted-threat-modeling.md",
+      "description": "Learn how to leverage AI to create FlowState threat models",
+      "category": "Advanced",
+      "order": 7,
+      "duration": "8 min"
+    }
+  ],
+  "categories": [
+    {
+      "id": "threat-modeling",
+      "name": "Threat Modeling 101",
+      "description": "Learn the fundamentals of threat modeling"
+    },
+    {
+      "id": "using-flowstate",
+      "name": "Using FlowState",
+      "description": "Master the FlowState TM tool"
+    },
+    {
+      "id": "advanced",
+      "name": "Advanced",
+      "description": "Advanced features and integrations"
+    }
+  ]
+}

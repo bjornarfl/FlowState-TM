@@ -1,0 +1,67 @@
+/* ── Tab Panel ─────────────────────────────────────────────────────── */
+
+.tab-panel {
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* Tables view within a tab panel */
+.tab-panel-tables {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 20px 10px 10px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+}
+
+/* YAML view within a tab panel */
+.tab-panel-yaml {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+/* Canvas view within a tab panel */
+.tab-panel-canvas {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.tab-panel-canvas .react-flow__container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Drop indicator shown between tab panels during drag reorder */
+.tab-drop-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--accent-color, #4f8ff7);
+  border-radius: 2px;
+  box-shadow: 0 0 6px var(--accent-color, rgba(79, 143, 247, 0.5));
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Placeholder for duplicate canvas */
+.tab-panel-canvas-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  background: var(--bg-secondary);
+  gap: 8px;
+}

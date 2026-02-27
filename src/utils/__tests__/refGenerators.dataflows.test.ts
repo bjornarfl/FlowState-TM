@@ -20,7 +20,7 @@ components:
 
   - ref: component-3
     name: Hi
-    component_type: external_dependency
+    component_type: external
     x: -6
     y: 72
 

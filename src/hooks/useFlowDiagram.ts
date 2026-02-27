@@ -10,6 +10,7 @@ import type { ThreatModel, Direction } from '../types/threatModel';
 import { updateYamlField, appendYamlItem, renameDataFlowRef, removeYamlItem, removeRefFromArrayFields } from '../utils/yamlParser';
 import { generateDataFlowRef } from '../utils/refGenerators';
 import { findClosestNode, getEdgeLabelPosition } from './useCanvasNavigation';
+import { sortNodesByRenderOrder } from '../utils/flowTransformer';
 
 export interface UseFlowDiagramParams {
   threatModel: ThreatModel | null;
@@ -295,7 +296,13 @@ export function useFlowDiagram({
       }
       
       setNodes((nodesSnapshot) => {
-        const updatedNodes = applyNodeChanges(filteredChanges, nodesSnapshot);
+        let updatedNodes = applyNodeChanges(filteredChanges, nodesSnapshot);
+        
+        // Re-sort when selection changes so selected boundaries render on top
+        const hasSelectionChange = filteredChanges.some((change: any) => change.type === 'select');
+        if (hasSelectionChange) {
+          updatedNodes = sortNodesByRenderOrder(updatedNodes);
+        }
         
         // Check if any change involves a boundary being resized or moved
         const hasBoundaryChange = changes.some((change: any) => {
@@ -324,6 +331,12 @@ export function useFlowDiagram({
           // Handle boundary dimension changes
           if (change.type === 'dimensions' && change.dimensions) {
             if (node?.type === 'boundaryNode') {
+              // Sync style.width/height so sortNodesByRenderOrder uses current dimensions
+              node.style = {
+                ...node.style,
+                width: change.dimensions.width,
+                height: change.dimensions.height,
+              };
               setThreatModel(
                 produce((draft) => {
                   if (!draft) return;
@@ -371,7 +384,7 @@ export function useFlowDiagram({
           }
         });
 
-        return updatedNodes;
+        return sortNodesByRenderOrder(updatedNodes);
       });
     },
     [updateBoundaryMemberships, updateYaml, setNodes, setEdges, setThreatModel, isDraggingNode, nodesRef, edgesRef, arrowKeyMovedNodesRef, debouncedRecordState],

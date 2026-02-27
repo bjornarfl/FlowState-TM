@@ -150,6 +150,60 @@ vi.mock('../../hooks/useFlowDiagram', () => ({
   })),
 }));
 
+vi.mock('../../hooks/useKeyboardShortcuts', () => ({
+  useKeyboardShortcuts: vi.fn(),
+}));
+
+vi.mock('../../hooks/useTableNavigation', () => ({
+  useTableNavigation: vi.fn(() => ({
+    handleTitleNavigate: vi.fn(),
+    handleTitleTabPress: vi.fn(),
+    handleDescriptionNavigate: vi.fn(),
+    handleDescriptionTabPress: vi.fn(),
+    handleParticipantsNavigate: vi.fn(),
+    handleParticipantsTabPress: vi.fn(),
+    handleComponentsNavigateToNextTable: vi.fn(),
+    handleComponentsNavigateToPreviousTable: vi.fn(),
+    handleAssetsNavigateToNextTable: vi.fn(),
+    handleAssetsNavigateToPreviousTable: vi.fn(),
+    handleThreatsNavigateToNextTable: vi.fn(),
+    handleThreatsNavigateToPreviousTable: vi.fn(),
+    handleControlsNavigateToPreviousTable: vi.fn(),
+    handleArchitectureNavigateToPreviousTable: vi.fn(),
+    handleArchitectureNavigateToNextTable: vi.fn(),
+  })),
+}));
+
+vi.mock('../../hooks/useModelLoader', () => ({
+  useModelLoader: vi.fn(() => ({
+    loadFromContent: vi.fn(),
+    loadFromYamlUpdate: vi.fn(),
+  })),
+}));
+
+vi.mock('../../hooks/useSaveHandlers', () => ({
+  useSaveHandlers: vi.fn(() => ({
+    handleSaveToBrowser: vi.fn(),
+    handleSaveToFile: vi.fn(),
+    handleSaveToNewFile: vi.fn(),
+    handleSaveToNewBrowser: vi.fn(),
+    handleCommitToGitHub: vi.fn(),
+    handleQuickSave: vi.fn(),
+    quickSaveRef: { current: null },
+  })),
+}));
+
+vi.mock('../../hooks/useGitHubOperations', () => ({
+  useGitHubOperations: vi.fn(() => ({
+    handleCommitModalClose: vi.fn(),
+    handleCommit: vi.fn(),
+    getCommitApiClient: vi.fn(),
+    handleSyncWithGitHub: vi.fn(),
+    handleSyncModalConfirm: vi.fn(),
+    handleSyncModalCancel: vi.fn(),
+  })),
+}));
+
 // Mock child components
 vi.mock('../canvas/ThreatModelNode', () => ({
   default: () => <div data-testid="threat-model-node" />,
@@ -286,17 +340,30 @@ describe('ThreatModelEditor', () => {
     });
 
     it('should load with initial content', async () => {
-      const { parseYaml } = await import('../../utils/yamlParser');
+      const { useModelLoader } = await import('../../hooks/useModelLoader');
+      const mockLoadFromContent = vi.fn();
+      (useModelLoader as any).mockReturnValue({
+        loadFromContent: mockLoadFromContent,
+        loadFromYamlUpdate: vi.fn(),
+      });
       
       render(<ThreatModelEditor initialContent={mockYamlContent} />);
       
       await waitFor(() => {
-        expect(parseYaml).toHaveBeenCalledWith(mockYamlContent);
+        expect(mockLoadFromContent).toHaveBeenCalledWith(
+          mockYamlContent,
+          expect.objectContaining({ type: 'initial' }),
+        );
       });
     });
 
     it('should load with initial file', async () => {
-      const { parseYaml } = await import('../../utils/yamlParser');
+      const { useModelLoader } = await import('../../hooks/useModelLoader');
+      const mockLoadFromContent = vi.fn();
+      (useModelLoader as any).mockReturnValue({
+        loadFromContent: mockLoadFromContent,
+        loadFromYamlUpdate: vi.fn(),
+      });
       
       // Mock File object with text() method
       const mockFile = {
@@ -307,7 +374,7 @@ describe('ThreatModelEditor', () => {
       render(<ThreatModelEditor initialFile={mockFile} />);
       
       await waitFor(() => {
-        expect(parseYaml).toHaveBeenCalled();
+        expect(mockLoadFromContent).toHaveBeenCalled();
       });
     });
   });
@@ -358,18 +425,7 @@ describe('ThreatModelEditor', () => {
       }
     });
 
-    it('should accept onBack callback', async () => {
-      const onBack = vi.fn();
-      
-      render(<ThreatModelEditor onBack={onBack} />);
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('react-flow')).toBeInTheDocument();
-      });
-      
-      // The component accepts an onBack callback
-      expect(onBack).toBeDefined();
-    });
+
   });
 
   describe('dark mode', () => {
@@ -608,7 +664,12 @@ describe('ThreatModelEditor', () => {
 
   describe('YAML editor', () => {
     it('should load YAML content', async () => {
-      const { parseYaml } = await import('../../utils/yamlParser');
+      const { useModelLoader } = await import('../../hooks/useModelLoader');
+      const mockLoadFromContent = vi.fn();
+      (useModelLoader as any).mockReturnValue({
+        loadFromContent: mockLoadFromContent,
+        loadFromYamlUpdate: vi.fn(),
+      });
       
       render(<ThreatModelEditor />);
       
@@ -616,8 +677,8 @@ describe('ThreatModelEditor', () => {
         expect(screen.getByTestId('react-flow')).toBeInTheDocument();
       });
       
-      // YAML is parsed and loaded
-      expect(parseYaml).toHaveBeenCalled();
+      // Model is loaded via the useModelLoader hook
+      expect(mockLoadFromContent).toHaveBeenCalled();
     });
   });
 

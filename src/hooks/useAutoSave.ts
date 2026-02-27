@@ -18,7 +18,7 @@ import {
   requestFileHandlePermission,
 } from '../utils/browserStorage';
 import type { SerializedSaveSource } from '../utils/browserStorage';
-import type { GitHubMetadata } from '../components/integrations/github/types';
+import type { GitHubMetadata } from '../integrations/github/types';
 
 export interface AutoSaveOptions {
   /** Debounce delay in milliseconds (default: 2000) */

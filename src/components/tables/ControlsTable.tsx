@@ -8,7 +8,7 @@ import EditableStatusPickerCell from './EditableStatusPickerCell';
 import MultiPickerCell, { PickerSection } from './MultiPickerCell';
 import SortableTableRow from './SortableTableRow';
 import type { ThreatModel, ControlStatus } from '../../types/threatModel';
-import type { GitHubMetadata } from '../integrations/github/types';
+import type { GitHubMetadata } from '../../integrations/github/types';
 import { Info } from 'lucide-react';
 import { isControlNamePlaceholder } from '../../utils/refGenerators';
 

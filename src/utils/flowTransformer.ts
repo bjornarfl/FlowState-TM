@@ -93,26 +93,46 @@ function calculateBoundingBox(
 }
 
 /**
- * Calculate nesting levels for z-index
- * Boundaries with more components get lower z-index (render behind)
- * @param boundaries - Array of boundaries
- * @returns Map of boundary ref to nesting level
+ * Get the area (width × height) of a React Flow node.
+ * Used to sort boundary nodes by size for correct DOM ordering.
+ * Prefers measured dimensions (updated live during resize) over style dimensions.
  */
-function calculateNestingLevels(boundaries: Boundary[]): Map<string, number> {
-  const levels = new Map<string, number>();
-  
-  // Sort boundaries by component count (ascending)
-  // Smaller boundaries should be on top (lower level number = less negative z-index)
-  const sorted = [...boundaries].sort((a, b) => 
-    (a.components?.length || 0) - (b.components?.length || 0)
-  );
-  
-  // Assign levels: smaller boundaries get lower level numbers (less negative z-index, renders on top)
-  sorted.forEach((boundary, index) => {
-    levels.set(boundary.ref, index);
-  });
-  
-  return levels;
+function getNodeArea(node: any): number {
+  const width = node.measured?.width ?? node.style?.width ?? node.width ?? 0;
+  const height = node.measured?.height ?? node.style?.height ?? node.height ?? 0;
+  return width * height;
+}
+
+/**
+ * Sort nodes so that boundaries are ordered by area in the DOM.
+ * Bigger boundaries come first (rendered behind smaller ones).
+ * Selected boundaries are placed after all other nodes so they render
+ * on top, making their resize handles and border fully accessible.
+ * Components come after unselected boundaries but before selected ones.
+ */
+export function sortNodesByRenderOrder(nodes: any[]): any[] {
+  const boundaries: any[] = [];
+  const others: any[] = [];
+
+  for (const node of nodes) {
+    if (node.type === 'boundaryNode') {
+      boundaries.push(node);
+    } else {
+      others.push(node);
+    }
+  }
+
+  // Split into unselected and selected boundaries
+  const unselected = boundaries.filter((n) => !n.selected);
+  const selected = boundaries.filter((n) => n.selected);
+
+  // Sort each group by area descending (biggest first → behind in DOM)
+  const byAreaDesc = (a: any, b: any) => getNodeArea(b) - getNodeArea(a);
+  unselected.sort(byAreaDesc);
+  selected.sort(byAreaDesc);
+
+  // Unselected boundaries (back), then components, then selected boundaries (front)
+  return [...unselected, ...others, ...selected];
 }
 
 /**
@@ -125,8 +145,6 @@ export function transformBoundaries(
   boundaries: Boundary[] = [],
   components: Component[] = []
 ): any[] {
-  const nestingLevels = calculateNestingLevels(boundaries);
-
   return boundaries.map((boundary) => {
     // Calculate or use provided dimensions
     let position;
@@ -150,8 +168,6 @@ export function transformBoundaries(
       }
     }
 
-    const nestingLevel = nestingLevels.get(boundary.ref) || 0;
-
     return {
       id: boundary.ref,
       type: 'boundaryNode',
@@ -160,7 +176,6 @@ export function transformBoundaries(
       style: {
         width: size.width,
         height: size.height,
-        zIndex: -(nestingLevel + 1) * 10, // Larger boundaries have lower (more negative) z-index
       },
       data: {
         label: boundary.name,
@@ -265,9 +280,9 @@ export function transformThreatModel(
   const components = transformComponents(threatModel.components);
   const edges = transformDataFlows(threatModel.data_flows, onLabelChange);
 
-  // Merge boundaries and components into nodes array
-  // Boundaries should be rendered first (they're in the back due to z-index)
-  const nodes = [...boundaries, ...components];
+  // Sort nodes so boundaries are ordered by area (biggest first = behind in DOM)
+  // and components always come after all boundaries
+  const nodes = sortNodesByRenderOrder([...boundaries, ...components]);
 
   return { nodes, edges };
 }

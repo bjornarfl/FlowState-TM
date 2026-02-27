@@ -6,6 +6,7 @@ import {
   updateYamlTopLevelField,
   updateYamlOptionalTopLevelField,
   modelToYaml,
+  normalizeYamlLegacyValues,
 } from '../yamlParser';
 import type { ThreatModel } from '../../types/threatModel';
 
@@ -496,6 +497,150 @@ components:
       // Arrays should be serialized in inline format [item1,item2]
       expect(result).toContain('affected_components: [comp-1,comp-2]');
       expect(result).not.toMatch(/affected_components:\s*\n\s*- comp-1/);
+    });
+  });
+
+  describe('parseYaml - numeric string handling', () => {
+    it('should parse numeric strings as strings not numbers', () => {
+      const yamlContent = `
+schema_version: '1.0'
+name: 2024
+description: 123
+components:
+  - ref: comp-1
+    name: 456
+    component_type: internal
+    description: 789
+assets:
+  - ref: asset-1
+    name: 2023
+    description: 999
+`;
+
+      const result = parseYaml(yamlContent);
+      
+      // These should all be strings, not numbers
+      expect(typeof result.name).toBe('string');
+      expect(result.name).toBe('2024');
+      expect(typeof result.description).toBe('string');
+      expect(result.description).toBe('123');
+      
+      expect(typeof result.components[0].name).toBe('string');
+      expect(result.components[0].name).toBe('456');
+      expect(typeof result.components[0].description).toBe('string');
+      expect(result.components[0].description).toBe('789');
+      
+      expect(result.assets).toBeDefined();
+      expect(typeof result.assets![0].name).toBe('string');
+      expect(result.assets![0].name).toBe('2023');
+      expect(typeof result.assets![0].description).toBe('string');
+      expect(result.assets![0].description).toBe('999');
+    });
+
+    it('should handle mixed numeric and text values', () => {
+      const yamlContent = `
+schema_version: '1.0'
+name: Project 2024
+components:
+  - ref: comp-1
+    name: 100
+    component_type: internal
+  - ref: comp-2
+    name: Component 200
+    component_type: external_dependency
+`;
+
+      const result = parseYaml(yamlContent);
+      expect(typeof result.components[0].name).toBe('string');
+      expect(result.components[0].name).toBe('100');
+      expect(typeof result.components[1].name).toBe('string');
+      expect(result.components[1].name).toBe('Component 200');
+    });
+
+    it('should preserve numeric coordinates while keeping string names as strings', () => {
+      const yamlContent = `
+schema_version: '1.0'
+name: TM Title
+components:
+  - ref: component-1
+    name: 1
+    component_type: internal
+    x: 144
+    y: 233
+    description: 1
+boundaries:
+  - ref: boundary-1
+    name: 1
+    x: 330
+    y: 267
+    width: 150
+    height: 75
+    description: 1
+`;
+
+      const result = parseYaml(yamlContent);
+      
+      // Names and descriptions should be strings even when they're numeric
+      expect(typeof result.name).toBe('string');
+      expect(typeof result.components[0].name).toBe('string');
+      expect(result.components[0].name).toBe('1');
+      expect(typeof result.components[0].description).toBe('string');
+      expect(result.components[0].description).toBe('1');
+      
+      // Coordinates should be numbers
+      expect(typeof result.components[0].x).toBe('number');
+      expect(result.components[0].x).toBe(144);
+      expect(typeof result.components[0].y).toBe('number');
+      expect(result.components[0].y).toBe(233);
+      
+      // Boundary dimensions should be numbers
+      expect(result.boundaries).toBeDefined();
+      expect(typeof result.boundaries![0].x).toBe('number');
+      expect(result.boundaries![0].x).toBe(330);
+      expect(typeof result.boundaries![0].width).toBe('number');
+      expect(result.boundaries![0].width).toBe(150);
+      expect(typeof result.boundaries![0].height).toBe('number');
+      expect(result.boundaries![0].height).toBe(75);
+    });
+  });
+
+  describe('legacy value normalization (backwards compatibility)', () => {
+    it('should normalize external_dependency to external in parsed model', () => {
+      const yamlContent = `
+schema_version: '1.0'
+name: Legacy Model
+components:
+  - ref: ext-svc
+    name: External Service
+    component_type: external_dependency
+`;
+      const result = parseYaml(yamlContent);
+      expect(result.components[0].component_type).toBe('external');
+    });
+
+    it('should normalize external_dependency to external in raw YAML strings', () => {
+      const yaml = `components:
+  - ref: ext-svc
+    name: External Service
+    component_type: external_dependency
+  - ref: int-svc
+    name: Internal Service
+    component_type: internal`;
+
+      const normalized = normalizeYamlLegacyValues(yaml);
+      expect(normalized).toContain('component_type: external');
+      expect(normalized).not.toContain('external_dependency');
+      expect(normalized).toContain('component_type: internal');
+    });
+
+    it('should not alter non-legacy values', () => {
+      const yaml = `components:
+  - ref: svc
+    name: Service
+    component_type: external`;
+
+      const normalized = normalizeYamlLegacyValues(yaml);
+      expect(normalized).toBe(yaml);
     });
   });
 });

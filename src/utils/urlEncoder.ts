@@ -1,6 +1,6 @@
 import LZString from 'lz-string';
 import type { ThreatModel } from '../types/threatModel';
-import type { GitHubMetadata } from '../components/integrations/github/types';
+import type { GitHubMetadata } from '../integrations/github/types';
 
 /**
  * Compact key mapping for size reduction
@@ -13,7 +13,8 @@ const COMPACT_MAP: Record<string, string> = {
   'components': 'c',
   'component_type': 'ct',
   'internal': 'i',
-  'external_dependency': 'e',
+  'external': 'e',
+  'external_dependency': 'e', // Legacy: maps to same compact form as 'external'
   'data_store': 'ds',
   'data_flows': 'df',
   'boundaries': 'b',
@@ -48,11 +49,18 @@ const COMPACT_MAP: Record<string, string> = {
 };
 
 /**
- * Reverse mapping for decompaction
+ * Reverse mapping for decompaction.
+ * Built from COMPACT_MAP, but 'external' takes priority over legacy 'external_dependency'
+ * for the shared compact key 'e'.
  */
-const EXPAND_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(COMPACT_MAP).map(([k, v]) => [v, k])
-);
+const EXPAND_MAP: Record<string, string> = (() => {
+  const map = Object.fromEntries(
+    Object.entries(COMPACT_MAP).map(([k, v]) => [v, k])
+  );
+  // Ensure 'e' expands to the canonical 'external', not legacy 'external_dependency'
+  map['e'] = 'external';
+  return map;
+})();
 
 /**
  * Recursively compactify an object by replacing keys with shortened versions

@@ -33,7 +33,7 @@ export default function CanvasToolbar({ onAddComponent, onAddBoundary }: CanvasT
         dragImage.style.borderRadius = '25px';
         dragImage.textContent = 'New Component';
         break;
-      case 'external_dependency':
+      case 'external':
         dragImage.style.borderRadius = '0';
         dragImage.textContent = 'New External';
         break;
@@ -120,9 +120,9 @@ export default function CanvasToolbar({ onAddComponent, onAddBoundary }: CanvasT
       </button>
       <button 
         className="canvas-toolbar-button"
-        onClick={() => onAddComponent('external_dependency')}
+        onClick={() => onAddComponent('external')}
         draggable
-        onDragStart={(e) => handleDragStart(e, 'component', 'external_dependency')}
+        onDragStart={(e) => handleDragStart(e, 'component', 'external')}
         onDragEnd={handleDragEnd}
         title="Add external dependency (click or drag)"
       >

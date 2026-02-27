@@ -277,3 +277,39 @@ export function findUnoccupiedPosition(
   y = targetY;
   return { x, y };
 }
+
+/**
+ * Cross-table column mapping functions.
+ * These are pure functions with no closure dependencies, used to map
+ * column names/indices when navigating between different tables.
+ */
+
+/** Map an Assets table column to the corresponding Threats table column. */
+export function mapAssetsToThreatsColumn(assetsColumn: 'name' | 'description'): 'name' | 'description' | 'items' | 'status' {
+  // name -> name, description -> description
+  return assetsColumn;
+}
+
+/** Map a Threats table column to the corresponding Assets table column. */
+export function mapThreatsToAssetsColumn(threatsColumn: 'name' | 'description' | 'items' | 'status'): 'name' | 'description' {
+  // name -> name, description -> description, items -> description, status -> description (fallback)
+  return threatsColumn === 'name' ? 'name' : 'description';
+}
+
+/** Map a Threats table column to the corresponding Controls table column index. */
+export function mapThreatsToControlsColumn(threatsColumn: 'name' | 'description' | 'items' | 'status'): number {
+  // name -> 0 (name), description -> 1 (description), items -> 2 (items), status -> 3 (status)
+  if (threatsColumn === 'name') return 0;
+  if (threatsColumn === 'description') return 1;
+  if (threatsColumn === 'items') return 2;
+  return 3; // status
+}
+
+/** Map a Controls table column index to the corresponding Threats table column. */
+export function mapControlsToThreatsColumn(controlsColumnIndex: number): 'name' | 'description' | 'items' | 'status' {
+  // 0 (name) -> name, 1 (description) -> description, 2 (items) -> items, 3 (status) -> status
+  if (controlsColumnIndex === 0) return 'name';
+  if (controlsColumnIndex === 1) return 'description';
+  if (controlsColumnIndex === 2) return 'items';
+  return 'status';
+}

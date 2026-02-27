@@ -1,0 +1,60 @@
+{
+  "templates": [
+    {
+      "name": "Simple Web Application",
+      "file": "simple.yaml",
+      "description": "A basic threat model for a web application with user, web server, and database",
+      "tags": ["web", "basic", "beginner"],
+      "order": 0
+    },
+    {
+      "name": "Version Control and CI CD",
+      "file": "version_control_and_cicd.yaml",
+      "description": "Threat model for the usage of GitHub to code and deploy applications",
+      "tags": ["cicd", "intermediate"],
+      "order": 1
+    },
+    {
+      "name": "Mobile App with Backend",
+      "file": "mobile_app_backend.yaml",
+      "description": "A mobile application communicating with backend services including authentication, API gateway, and database",
+      "tags": ["mobile", "backend", "api", "intermediate", "AI-generated"],
+      "order": 2
+    },
+    {
+      "name": "Serverless Architecture",
+      "file": "serverless_architecture.yaml",
+      "description": "Event-driven serverless application with functions, API gateway, managed database, object storage, and message queues",
+      "tags": ["serverless", "cloud", "lambda", "event-driven", "advanced", "AI-generated"],
+      "order": 3
+    },
+    {
+      "name": "Containerized Microservices",
+      "file": "containerized_microservices.yaml",
+      "description": "Kubernetes-orchestrated microservices with service mesh, ingress controller, container registry, and persistent storage",
+      "tags": ["kubernetes", "containers", "microservices", "docker", "service-mesh", "advanced", "AI-generated"],
+      "order": 4
+    },
+    {
+      "name": "IoT System",
+      "file": "iot_system.yaml",
+      "description": "Internet of Things architecture with edge devices, gateways, IoT hub, stream processing, and device management",
+      "tags": ["iot", "edge", "devices", "sensors", "telemetry", "advanced", "AI-generated"],
+      "order": 5
+    },
+    {
+      "name": "Web App with CDN",
+      "file": "web_app_cdn.yaml",
+      "description": "Web application delivered through CDN with origin server, application backend, database, and caching layer",
+      "tags": ["web", "cdn", "cache", "intermediate", "AI-generated"],
+      "order": 6
+    },
+    {
+      "name": "Payment Processing Flow",
+      "file": "payment_processing.yaml",
+      "description": "Online payment processing flow including card data handling, payment gateway integration, fraud detection, and webhooks",
+      "tags": ["payment", "pci-dss", "e-commerce", "business-flow", "intermediate", "AI-generated"],
+      "order": 7
+    }
+  ]
+}

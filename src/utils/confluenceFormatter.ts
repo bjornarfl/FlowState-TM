@@ -3,9 +3,11 @@
  * Modern Confluence accepts HTML when pasting content
  */
 
+import yaml from 'js-yaml';
 import type { ThreatModel } from '../types/threatModel';
-import type { GitHubMetadata } from '../components/integrations/github/types';
+import type { GitHubMetadata } from '../integrations/github/types';
 import { generateShareableUrl } from './urlEncoder';
+import { getAppUrl, REPO_URL } from '../config';
 
 /**
  * Escape HTML special characters and convert newlines to <br> tags
@@ -38,24 +40,8 @@ export function generateConfluenceMarkup(
   html.push('</div>');
   html.push('<div class="ak-editor-expand__content">');
   html.push('<p>');
-  
-  // Generate shareable URL for editing the threat model
-  const editUrl = generateShareableUrl(threatModel, githubMetadata);
-  
-  html.push('- <a href="https://github.com/bjornarfl/FlowState-TM>Learn more about FlowState</a>');
-  
-  // Only include the edit URL if it's under 8000 characters
-  if (editUrl.length < 8000) {
-    html.push('<br>');
-    html.push(`- <a href="${editUrl}">Open/Edit this Threat Model</a>`);
-  }
-  
-  if (githubMetadata) {
-    const sourceUrl = `https://${githubMetadata.domain}/${githubMetadata.owner}/${githubMetadata.repository}/blob/${githubMetadata.branch}/${githubMetadata.path}`;
-    html.push('<br>');
-    html.push(`- <a href="${sourceUrl}">See Source File in GitHub</a>`);
-  }
-  
+  const learnMoreUrl = REPO_URL || getAppUrl();
+  html.push(`- <a href="${learnMoreUrl}">Learn more about FlowState</a>`);
   html.push('</p>');
   html.push('</div>');
   html.push('</div>');
@@ -83,6 +69,30 @@ export function generateConfluenceMarkup(
   html.push('</div>');
   html.push('</div>');
   html.push('<p> </p>')
+
+  // Components
+  if (threatModel.components && threatModel.components.length > 0) {
+    html.push('<h2>Components</h2>');
+    html.push('<table border="1" cellpadding="8" cellspacing="0" style="width: 100%;">');
+    html.push('<thead><tr>');
+    html.push('<th style="background-color: #DEEBFF; text-align: left;" data-cell-background="#deebff" colorname="Light blue" data-colwidth="200"><b>Component Name</b></th>');
+    html.push('<th style="background-color: #DEEBFF; text-align: left;" data-cell-background="#deebff" colorname="Light blue" data-colwidth="120"><b>Type</b></th>');
+    html.push('<th style="background-color: #DEEBFF; text-align: left;" data-cell-background="#deebff" colorname="Light blue" data-colwidth="480"><b>Description</b></th>');
+    html.push('</tr></thead>');
+    html.push('<tbody>');
+    threatModel.components.forEach((component) => {
+      const description = component.description || '';
+      const typeLabel = component.component_type === 'data_store' ? 'Data Store'
+        : component.component_type === 'external' ? 'External'
+        : 'Internal';
+      html.push('<tr>');
+      html.push(`<td><b>${escapeHtml(component.name)}</b></td>`);
+      html.push(`<td>${escapeHtml(typeLabel)}</td>`);
+      html.push(`<td>${escapeHtml(description)}</td>`);
+      html.push('</tr>');
+    });
+    html.push('</tbody></table>');
+  }
 
   // Assets
   if (threatModel.assets && threatModel.assets.length > 0) {
@@ -152,6 +162,34 @@ export function generateConfluenceMarkup(
     });
     html.push('</tbody></table>');
   }
+
+  // YAML source and links in expandable block
+  const yamlContent = yaml.dump(threatModel, { lineWidth: -1, noRefs: true, sortKeys: false, flowLevel: 3 });
+  html.push('<div class="ak-editor-expand" data-node-type="expand" data-title="YAML Source">');
+  html.push('<div class="ak-editor-expand__title-container">');
+  html.push('</div>');
+  html.push('<div class="ak-editor-expand__content">');
+  html.push('<p>');
+  
+  // Generate shareable URL for editing the threat model
+  const editUrl = generateShareableUrl(threatModel, githubMetadata);
+  
+  // Only include the edit URL if it's under 8000 characters
+  if (editUrl.length < 8000) {
+    html.push(`- <a href="${editUrl}">Open/Edit a copy of this Threat Model</a>`);
+    html.push('<br>');
+  }
+  
+  if (githubMetadata) {
+    const sourceUrl = `https://${githubMetadata.domain}/${githubMetadata.owner}/${githubMetadata.repository}/blob/${githubMetadata.branch}/${githubMetadata.path}`;
+    html.push(`- <a href="${sourceUrl}">See Source File in GitHub</a>`);
+    html.push('<br>');
+  }
+  
+  html.push('</p>');
+  html.push(`<pre><code data-language="yaml">${escapeHtml(yamlContent)}</code></pre>`);
+  html.push('</div>');
+  html.push('</div>');
 
   // Close HTML document
   html.push('</body></html>');

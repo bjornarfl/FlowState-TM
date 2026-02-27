@@ -183,8 +183,10 @@ export function generateDataFlowRef(
  * @param text - The text to slugify
  * @returns A slugified version of the text
  */
-export function slugify(text: string): string {
-  return text
+export function slugify(text: string | number): string {
+  // Convert to string if it's a number (handles cases where YAML parses "1" as number)
+  const str = String(text);
+  return str
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, '') // Remove special characters
@@ -222,7 +224,11 @@ function makeSlugUnique(baseSlug: string, existingRefs: Set<string>): string {
 export function regenerateAllRefs(yamlContent: string): string {
   try {
     // Parse to get the model structure
-    const model = yaml.load(yamlContent) as ThreatModel;
+    // Use FAILSAFE_SCHEMA to prevent numeric string conversion issues
+    const model = yaml.load(yamlContent, {
+      schema: yaml.FAILSAFE_SCHEMA,
+      json: true
+    }) as ThreatModel;
     
     // Maps to track old ref -> new ref
     const refMap = new Map<string, string>();

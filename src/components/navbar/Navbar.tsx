@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookDashed, Download, FileText, Settings, Save, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Table2, Code2, Moon, Sun, Undo2, Redo2, Plus, Wand2, Upload, Database, Github, FolderGit2, HardDrive, FileOutput, Shapes, Link, Copy, Image, Timer, TimerOff } from 'lucide-react';
+import { BookDashed, Download, FileText, Settings, Save, Code2, Moon, Sun, Undo2, Redo2, Plus, Wand2, Upload, Database, Github, FolderGit2, HardDrive, FileOutput, Link, Copy, Image, Timer, TimerOff, HelpCircle } from 'lucide-react';
 import { NavbarDropdown } from './NavbarDropdown';
 import { SourceType } from '../filebrowser/SourceSelector';
 import { useSaveState } from '../../contexts/SaveStateContext';
@@ -7,19 +7,11 @@ import { useSaveState } from '../../contexts/SaveStateContext';
 import './Navbar.css';
 
 export interface NavbarProps {
-  isCollapsed: boolean;
-  isCanvasCollapsed: boolean;
-  sidebarView: 'tables' | 'yaml';
-  mobileView?: 'tables' | 'yaml' | 'canvas';
   isDarkMode: boolean;
   canUndo: boolean;
   canRedo: boolean;
   canSaveToFile?: boolean;
   localFileName?: string | null;
-  onSidebarCollapse: () => void;
-  onCanvasCollapse: () => void;
-  onSidebarViewChange: (view: 'tables' | 'yaml') => void;
-  onMobileViewChange?: (view: 'tables' | 'yaml' | 'canvas') => void;
   onUndo: () => void;
   onRedo: () => void;
   onNewThreatModel: (source: SourceType) => void;
@@ -33,6 +25,7 @@ export interface NavbarProps {
   onDarkModeToggle: () => void;
   onGitHubSettingsClick?: () => void;
   onGenerateShareLink?: () => void;
+  onOpenTutorials?: () => void;
   onCopyToConfluence: () => void;
   onCopyDiagramToClipboard?: () => void;
   onCopyAsYaml?: () => void;
@@ -60,19 +53,10 @@ function formatSaveTime(timestamp: number): string {
 }
 
 export function Navbar({
-  isCollapsed,
-  isCanvasCollapsed,
-  sidebarView,
-  mobileView = 'tables',
   isDarkMode,
   canUndo,
   canRedo,
   canSaveToFile,
-  localFileName,
-  onSidebarCollapse,
-  onCanvasCollapse,
-  onSidebarViewChange,
-  onMobileViewChange,
   onUndo,
   onRedo,
   onNewThreatModel,
@@ -90,6 +74,7 @@ export function Navbar({
   onDarkModeToggle,
   onGitHubSettingsClick,
   onGenerateShareLink,
+  onOpenTutorials,
 }: NavbarProps): React.JSX.Element {
   // ── Save state from context ──────────────────────────────────────────
   const {
@@ -181,76 +166,11 @@ export function Navbar({
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        {/* Desktop view toggle */}
-        {!isCollapsed && (
-          <div className="navbar-toggle navbar-toggle-desktop">
-            <button
-              className={`navbar-toggle-button ${sidebarView === 'tables' ? 'active' : ''}`}
-              onClick={() => onSidebarViewChange('tables')}
-              title="Table View"
-            >
-              <Table2 size={16} />
-              <span>Tables</span>
-            </button>
-            <button
-              className={`navbar-toggle-button ${sidebarView === 'yaml' ? 'active' : ''}`}
-              onClick={() => onSidebarViewChange('yaml')}
-              title="YAML Editor"
-            >
-              <Code2 size={16} />
-              <span>YAML</span>
-            </button>
-          </div>
-        )}
-        
-        {/* Mobile view toggle - 3 buttons */}
-        <div className="navbar-toggle navbar-toggle-mobile">
-          <button
-            className={`navbar-toggle-button ${mobileView === 'tables' ? 'active' : ''}`}
-            onClick={() => onMobileViewChange?.('tables')}
-            title="Table View"
-          >
-            <Table2 size={16} />
-            <span>Tables</span>
-          </button>
-          <button
-            className={`navbar-toggle-button ${mobileView === 'yaml' ? 'active' : ''}`}
-            onClick={() => onMobileViewChange?.('yaml')}
-            title="YAML Editor"
-          >
-            <Code2 size={16} />
-            <span>YAML</span>
-          </button>
-          <button
-            className={`navbar-toggle-button ${mobileView === 'canvas' ? 'active' : ''}`}
-            onClick={() => onMobileViewChange?.('canvas')}
-            title="Canvas View"
-          >
-            <Shapes size={16} />
-            <span>Canvas</span>
-          </button>
-        </div>
-
-        {/* Desktop collapse buttons */}
-        <button 
-          className="navbar-button collapse-button navbar-button-desktop"
-          onClick={onSidebarCollapse}
-          title={isCollapsed ? "Show sidebar" : "Hide sidebar"}
-        >
-          {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-        </button>
-
-        <button 
-          className="navbar-button canvas-collapse-button navbar-button-desktop"
-          onClick={onCanvasCollapse}
-          title={isCanvasCollapsed ? "Show canvas" : "Hide canvas"}
-        >
-          {isCanvasCollapsed ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
-        </button>
+        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="FlowState TM" className="navbar-logo" style={{ width: 28, height: 28 }} />
+        <h1 className="navbar-title">FlowState TM</h1>
       </div>
 
       <div className="navbar-center">
-        <h1 className="navbar-title">FlowState TM</h1>
         {indicatorContent}
       </div>
 
@@ -306,18 +226,18 @@ export function Navbar({
             },
           ]}
         />
-                    
+              
         <NavbarDropdown
           trigger={<Save size={20} />}
           title="Save threat model"
           items={[
             {
               label: saveSource
-                ? `Save (${saveSource.type === 'github' ? 'GitHub' : saveSource.type === 'file' ? saveSource.fileName : 'Browser'})`
-                : 'Save',
+          ? `Save (${saveSource.type === 'github' ? 'GitHub' : saveSource.type === 'file' ? saveSource.fileName : 'Browser'})`
+          : 'Save',
               icon: <Save size={16} />,
               onClick: onQuickSave,
-              shortcut: '⌘S',
+              shortcut: navigator.userAgent.includes('Mac') ? '⌘S' : 'Ctrl+S',
             },
             // Source-specific "save to new" options
             ...(saveSource?.type === 'file' && canSaveToFile && onSaveToNewFile ? [{
@@ -390,6 +310,11 @@ export function Navbar({
           trigger={<Settings size={20} />}
           title="Settings"
           items={[
+            {
+              label: 'Help & Tutorials',
+              icon: <HelpCircle size={16} />,
+              onClick: () => onOpenTutorials?.(),
+            },
             {
               label: isDarkMode ? 'Light Mode' : 'Dark Mode',
               icon: isDarkMode ? <Sun size={16} /> : <Moon size={16} />,

@@ -4,7 +4,7 @@
  */
 
 import { get, set, del, entries, clear } from 'idb-keyval';
-import type { GitHubMetadata } from '../components/integrations/github/types';
+import type { GitHubMetadata } from '../integrations/github/types';
 
 export interface SavedModel {
   id: string;

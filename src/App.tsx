@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import ThreatModelEditor from './components/ThreatModelEditor';
-import GitHubFileLoader from './components/integrations/github/GitHubFileLoader';
+import GitHubFileLoader from './integrations/github/GitHubFileLoader';
 import { ToastProvider } from './contexts/ToastContext';
 import { SaveStateProvider } from './contexts/SaveStateContext';
+import { TutorialProvider } from './contexts/TutorialContext';
 import ToastContainer from './components/toast/ToastContainer';
 import { migrateFromLocalStorage } from './utils/browserStorage';
 import './App.css';
@@ -51,12 +52,22 @@ export default function App(): React.JSX.Element {
   return (
     <ToastProvider>
       <SaveStateProvider>
-        <ToastContainer />
-        <Routes>
-          <Route path="/" element={<ThreatModelEditor />} />
-          <Route path="/github/:owner/:repo/:filename" element={<GitHubFileLoader />} />
-        </Routes>
+        <TutorialProvider>
+          <AppContent />
+        </TutorialProvider>
       </SaveStateProvider>
     </ToastProvider>
+  );
+}
+
+function AppContent(): React.JSX.Element {
+  return (
+    <>
+      <ToastContainer />
+      <Routes>
+        <Route path="/" element={<ThreatModelEditor />} />
+        <Route path="/github/:owner/:repo/:filename" element={<GitHubFileLoader />} />
+      </Routes>
+    </>
   );
 }

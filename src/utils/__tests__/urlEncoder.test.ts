@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { encodeModelForUrl, decodeModelFromUrl, generateShareableUrl, getModelFromUrl } from '../urlEncoder';
 import type { ThreatModel } from '../../types/threatModel';
-import type { GitHubMetadata } from '../../components/integrations/github/types';
+import type { GitHubMetadata } from '../../integrations/github/types';
 
 describe('urlEncoder', () => {
   const sampleModel: ThreatModel = {
@@ -278,7 +278,7 @@ describe('urlEncoder', () => {
         components: Array.from({ length: 10 }, (_, i) => ({
           ref: `comp-${i}`,
           name: `Component ${i}`,
-          component_type: i % 3 === 0 ? 'internal' : i % 3 === 1 ? 'external_dependency' : 'data_store',
+          component_type: i % 3 === 0 ? 'internal' : i % 3 === 1 ? 'external' : 'data_store',
           description: `This is component ${i} with some description text`,
           x: i * 100,
           y: i * 50,

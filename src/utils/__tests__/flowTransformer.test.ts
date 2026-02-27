@@ -4,6 +4,7 @@ import {
   transformDataFlows,
   transformBoundaries,
   transformThreatModel,
+  sortNodesByRenderOrder,
 } from '../flowTransformer';
 import type { Component, DataFlow, Boundary, ThreatModel } from '../../types/threatModel';
 
@@ -66,7 +67,7 @@ describe('flowTransformer', () => {
         {
           ref: 'comp-2',
           name: 'Component 2',
-          component_type: 'external_dependency',
+          component_type: 'external',
         },
       ];
 
@@ -128,7 +129,7 @@ describe('flowTransformer', () => {
         {
           ref: 'comp-2',
           name: 'External',
-          component_type: 'external_dependency',
+          component_type: 'external',
         },
         {
           ref: 'comp-3',
@@ -139,7 +140,7 @@ describe('flowTransformer', () => {
 
       const result = transformComponents(components);
       expect(result[0].data.componentType).toBe('internal');
-      expect(result[1].data.componentType).toBe('external_dependency');
+      expect(result[1].data.componentType).toBe('external');
       expect(result[2].data.componentType).toBe('data_store');
     });
   });
@@ -326,7 +327,8 @@ describe('flowTransformer', () => {
           description: 'External boundary',
         },
       });
-      expect(result[0].style.zIndex).toBeLessThan(0);
+      // No zIndex in style — ordering is controlled by DOM order via sortNodesByRenderOrder
+      expect(result[0].style.zIndex).toBeUndefined();
     });
 
     it('should calculate boundary dimensions from contained components', () => {
@@ -388,7 +390,7 @@ describe('flowTransformer', () => {
       expect(result).toEqual([]);
     });
 
-    it('should assign z-index based on nesting level', () => {
+    it('should not include zIndex in boundary style', () => {
       const boundaries: Boundary[] = [
         {
           ref: 'boundary-1',
@@ -412,11 +414,9 @@ describe('flowTransformer', () => {
 
       const result = transformBoundaries(boundaries);
 
-      // Smaller boundary should have higher (less negative) z-index to render on top
-      const smallBoundary = result.find(b => b.id === 'boundary-2');
-      const largeBoundary = result.find(b => b.id === 'boundary-1');
-
-      expect(smallBoundary!.style.zIndex).toBeGreaterThan(largeBoundary!.style.zIndex);
+      // zIndex should not be set — DOM ordering handles layering
+      expect(result[0].style.zIndex).toBeUndefined();
+      expect(result[1].style.zIndex).toBeUndefined();
     });
 
     it('should handle boundaries with components without positions', () => {
@@ -541,7 +541,7 @@ describe('flowTransformer', () => {
       expect(result.nodes).toHaveLength(2); // 1 boundary + 1 component
       expect(result.edges).toHaveLength(1);
       
-      // Boundaries should come first (for z-index layering)
+      // Boundaries should come first (rendered behind in DOM)
       expect(result.nodes[0].type).toBe('boundaryNode');
       expect(result.nodes[1].type).toBe('threatModelNode');
     });
@@ -635,7 +635,7 @@ describe('flowTransformer', () => {
           {
             ref: 'comp-2',
             name: 'Component 2',
-            component_type: 'external_dependency',
+            component_type: 'external',
             x: 300,
             y: 100,
           },
@@ -708,6 +708,110 @@ describe('flowTransformer', () => {
       expect(types[0]).toBe('boundaryNode');
       expect(types[1]).toBe('threatModelNode');
       expect(types[2]).toBe('threatModelNode');
+    });
+  });
+
+  describe('sortNodesByRenderOrder', () => {
+    it('should place bigger boundaries before smaller ones', () => {
+      const nodes = [
+        { id: 'small', type: 'boundaryNode', style: { width: 200, height: 100 } },
+        { id: 'big', type: 'boundaryNode', style: { width: 800, height: 600 } },
+        { id: 'medium', type: 'boundaryNode', style: { width: 400, height: 300 } },
+      ];
+
+      const sorted = sortNodesByRenderOrder(nodes);
+      const ids = sorted.map((n: any) => n.id);
+
+      // Biggest first (rendered behind), smallest last (rendered on top)
+      expect(ids).toEqual(['big', 'medium', 'small']);
+    });
+
+    it('should place components after all boundaries', () => {
+      const nodes = [
+        { id: 'comp-1', type: 'threatModelNode' },
+        { id: 'boundary-1', type: 'boundaryNode', style: { width: 400, height: 300 } },
+        { id: 'comp-2', type: 'threatModelNode' },
+      ];
+
+      const sorted = sortNodesByRenderOrder(nodes);
+      const types = sorted.map((n: any) => n.type);
+
+      expect(types[0]).toBe('boundaryNode');
+      expect(types[1]).toBe('threatModelNode');
+      expect(types[2]).toBe('threatModelNode');
+    });
+
+    it('should move selected boundaries after unselected ones', () => {
+      const nodes = [
+        { id: 'big-selected', type: 'boundaryNode', style: { width: 800, height: 600 }, selected: true },
+        { id: 'small', type: 'boundaryNode', style: { width: 200, height: 100 } },
+        { id: 'medium', type: 'boundaryNode', style: { width: 400, height: 300 } },
+      ];
+
+      const sorted = sortNodesByRenderOrder(nodes);
+      const ids = sorted.map((n: any) => n.id);
+
+      // Unselected boundaries first (by area desc), then selected
+      expect(ids).toEqual(['medium', 'small', 'big-selected']);
+    });
+
+    it('should maintain area-based sorting among selected boundaries', () => {
+      const nodes = [
+        { id: 'small-sel', type: 'boundaryNode', style: { width: 200, height: 100 }, selected: true },
+        { id: 'big-sel', type: 'boundaryNode', style: { width: 800, height: 600 }, selected: true },
+        { id: 'unsel', type: 'boundaryNode', style: { width: 400, height: 300 } },
+      ];
+
+      const sorted = sortNodesByRenderOrder(nodes);
+      const ids = sorted.map((n: any) => n.id);
+
+      // Unselected first, then selected by area desc
+      expect(ids).toEqual(['unsel', 'big-sel', 'small-sel']);
+    });
+
+    it('should handle nodes without style dimensions', () => {
+      const nodes = [
+        { id: 'no-style', type: 'boundaryNode' },
+        { id: 'with-style', type: 'boundaryNode', style: { width: 400, height: 300 } },
+      ];
+
+      const sorted = sortNodesByRenderOrder(nodes);
+      const ids = sorted.map((n: any) => n.id);
+
+      // Node with dimensions has bigger area, should come first
+      expect(ids).toEqual(['with-style', 'no-style']);
+    });
+
+    it('should handle empty array', () => {
+      expect(sortNodesByRenderOrder([])).toEqual([]);
+    });
+
+    it('should preserve component order', () => {
+      const nodes = [
+        { id: 'comp-1', type: 'threatModelNode' },
+        { id: 'comp-2', type: 'threatModelNode' },
+        { id: 'comp-3', type: 'threatModelNode' },
+      ];
+
+      const sorted = sortNodesByRenderOrder(nodes);
+      const ids = sorted.map((n: any) => n.id);
+
+      expect(ids).toEqual(['comp-1', 'comp-2', 'comp-3']);
+    });
+
+    it('should place selected boundaries after components', () => {
+      const nodes = [
+        { id: 'comp-1', type: 'threatModelNode' },
+        { id: 'boundary-sel', type: 'boundaryNode', style: { width: 400, height: 300 }, selected: true },
+        { id: 'boundary-unsel', type: 'boundaryNode', style: { width: 600, height: 400 } },
+        { id: 'comp-2', type: 'threatModelNode' },
+      ];
+
+      const sorted = sortNodesByRenderOrder(nodes);
+      const ids = sorted.map((n: any) => n.id);
+
+      // Unselected boundaries → components → selected boundaries
+      expect(ids).toEqual(['boundary-unsel', 'comp-1', 'comp-2', 'boundary-sel']);
     });
   });
 });

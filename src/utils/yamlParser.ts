@@ -20,16 +20,112 @@ const validateThreatModel = ajv.compile(threatModelSchema);
 // ============================================================================
 
 /**
- * Safe YAML parsing options to prevent attacks
+ * Custom YAML schema that treats all unquoted scalars as strings.
+ * This prevents numeric values like "2024" or "123" from being converted to numbers,
+ * which would break schema validation that expects string types.
+ * 
+ * We use FAILSAFE_SCHEMA as the base because it treats all scalars as strings by default,
+ * while still parsing arrays and objects correctly.
+ */
+const STRING_PRESERVING_SCHEMA = yaml.FAILSAFE_SCHEMA;
+
+/**
+ * Safe YAML parsing options to prevent attacks and preserve string types
  */
 const SAFE_YAML_OPTIONS = {
   // Prevent YAML bombs and billion laughs attacks
   maxAliasCount: 100,
-  // Use CORE_SCHEMA (safe, no custom types)
-  schema: yaml.CORE_SCHEMA,
+  // Use FAILSAFE_SCHEMA to prevent numeric string conversion
+  schema: STRING_PRESERVING_SCHEMA,
   // Set JSON compatibility mode
   json: true,
 };
+
+/**
+ * Mapping of legacy YAML field values to their current equivalents.
+ * Used for both object-level and string-level normalization.
+ */
+const LEGACY_VALUE_REPLACEMENTS: Record<string, { field: string; pattern: RegExp; replacement: string }> = {
+  external_dependency: {
+    field: 'component_type',
+    pattern: /^(\s+component_type:\s*)external_dependency(\s*)$/gm,
+    replacement: '$1external$2',
+  },
+};
+
+/**
+ * Normalize legacy values in a raw YAML string.
+ * Replaces deprecated field values (e.g. component_type: external_dependency → external)
+ * so the YAML editor shows the canonical values.
+ *
+ * @param yamlContent - Raw YAML string
+ * @returns YAML string with legacy values replaced
+ */
+export function normalizeYamlLegacyValues(yamlContent: string): string {
+  let result = yamlContent;
+  for (const { pattern, replacement } of Object.values(LEGACY_VALUE_REPLACEMENTS)) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
+/**
+ * Normalize legacy component_type values in a parsed object.
+ * This ensures backwards compatibility when loading older threat model files.
+ *
+ * Legacy mappings:
+ * - 'external_dependency' → 'external'
+ */
+function normalizeLegacyValues(data: any): any {
+  if (!data || typeof data !== 'object') return data;
+
+  if (Array.isArray(data)) {
+    return data.map(item => normalizeLegacyValues(item));
+  }
+
+  const result: any = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'component_type' && value === 'external_dependency') {
+      result[key] = 'external';
+    } else if (value && typeof value === 'object') {
+      result[key] = normalizeLegacyValues(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/**
+ * Converts string values to numbers for specific numeric fields in the parsed YAML.
+ * FAILSAFE_SCHEMA treats all scalars as strings, but we need actual numbers for
+ * coordinate and dimension fields to pass schema validation.
+ */
+function convertNumericFields(data: any): any {
+  if (!data || typeof data !== 'object') return data;
+
+  // List of fields that should be numbers
+  const numericFields = ['x', 'y', 'width', 'height'];
+
+  if (Array.isArray(data)) {
+    return data.map(item => convertNumericFields(item));
+  }
+
+  const result: any = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (numericFields.includes(key) && typeof value === 'string') {
+      // Convert string to number if it's a valid number
+      const num = Number(value);
+      result[key] = isNaN(num) ? value : num;
+    } else if (value && typeof value === 'object') {
+      // Recursively process nested objects and arrays
+      result[key] = convertNumericFields(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
 
 // ============================================================================
 // Type Definitions
@@ -111,15 +207,21 @@ export async function fetchYamlContent(yamlPath: string): Promise<string> {
  */
 export function parseYaml(yamlContent: string): ThreatModel {
   try {
-    // Parse YAML with safety limits
+    // Parse YAML with safety limits (all scalars will be strings with FAILSAFE_SCHEMA)
     const parsed = yaml.load(yamlContent, SAFE_YAML_OPTIONS);
     
     if (!parsed || typeof parsed !== 'object') {
       throw new Error('Invalid YAML: Expected an object');
     }
     
+    // Convert numeric fields (x, y, width, height) from strings to numbers
+    const converted = convertNumericFields(parsed);
+    
+    // Normalize legacy values (e.g. external_dependency → external)
+    const normalized = normalizeLegacyValues(converted);
+    
     // Validate against JSON schema
-    const isValid = validateThreatModel(parsed);
+    const isValid = validateThreatModel(normalized);
     
     if (!isValid) {
       const errors = validateThreatModel.errors || [];
@@ -131,7 +233,7 @@ export function parseYaml(yamlContent: string): ThreatModel {
       throw new Error(`Schema validation failed: ${errorMessages}`);
     }
     
-    return parsed as unknown as ThreatModel;
+    return normalized as unknown as ThreatModel;
   } catch (error) {
     if (error instanceof yaml.YAMLException) {
       throw new Error(`YAML parsing error: ${error.message}`);
@@ -164,6 +266,43 @@ function isPipeStyleValue(value: string): boolean {
 }
 
 /**
+ * Find the insert index after a top-level field, accounting for pipe-style
+ * multiline content that extends beyond the field's header line.
+ * 
+ * For `description: |` followed by indented continuation lines, this returns
+ * the index AFTER all continuation lines rather than right after the header.
+ * 
+ * @param lines - Array of YAML lines
+ * @param fieldLineIndex - Index of the field's header line
+ * @returns Index where new content can safely be inserted
+ */
+function findInsertIndexAfterTopLevelField(lines: string[], fieldLineIndex: number): number {
+  const fieldLine = lines[fieldLineIndex];
+  const fieldMatch = fieldLine.match(/^\w+:\s*(.*)$/);
+  if (!fieldMatch) return fieldLineIndex + 1;
+  
+  const fieldValue = fieldMatch[1].trim();
+  
+  // If not pipe-style, insert right after this line
+  if (!isPipeStyleValue(fieldValue)) {
+    return fieldLineIndex + 1;
+  }
+  
+  // For pipe-style, skip continuation lines (blank or indented more than the field)
+  const fieldIndent = parseLine(fieldLine).indent;
+  let i = fieldLineIndex + 1;
+  while (i < lines.length) {
+    const p = parseLine(lines[i]);
+    if (p.trimmed === '' || p.indent > fieldIndent) {
+      i++;
+    } else {
+      break;
+    }
+  }
+  return i;
+}
+
+/**
  * Extract ref value from a ref line, removing quotes
  */
 function extractRefValue(line: string): string | null {
@@ -188,10 +327,25 @@ function isLeavingSection(line: YamlLine, sectionIndent: number): boolean {
  * @param sectionName - Name of the section to find (e.g., 'components', 'threats')
  * @returns Section position information or null if not found
  */
+/**
+ * Check if a line is a section header for a given section name.
+ * A section header is 'sectionName:' (followed by items on next lines),
+ * 'sectionName: []' (empty section), or 'sectionName: # comment'.
+ * This excludes inline array values like 'assets: [A01]' which are field values.
+ */
+function isSectionHeader(trimmedLine: string, sectionName: string): boolean {
+  if (trimmedLine === `${sectionName}:`) return true;
+  if (!trimmedLine.startsWith(`${sectionName}: `)) return false;
+  const valueAfter = trimmedLine.slice(sectionName.length + 2).trim();
+  return valueAfter === '[]' || valueAfter.startsWith('#');
+}
+
 function findSection(lines: string[], sectionName: string): SectionPosition | null {
   for (let i = 0; i < lines.length; i++) {
     const parsed = parseLine(lines[i]);
-    if (parsed.trimmed === `${sectionName}:` || parsed.trimmed.startsWith(`${sectionName}: `)) {
+    // Only match actual section headers, not nested fields with inline values
+    // e.g., match 'assets:' or 'assets: []' but not 'assets: [A01]'
+    if (isSectionHeader(parsed.trimmed, sectionName)) {
       return {
         startIndex: i,
         indent: parsed.indent,
@@ -1090,6 +1244,7 @@ export function removeRefFromArrayFields(
 /**
  * Update a top-level field in the YAML (like name, description).
  * This modifies fields at the root level of the YAML document.
+ * Handles existing multiline/pipe-style values by removing continuation lines.
  * 
  * @param yamlContent - Raw YAML string to modify
  * @param field - Field name to update
@@ -1101,9 +1256,55 @@ export function updateYamlTopLevelField(
   field: string,
   newValue: string
 ): string {
-  const pattern = new RegExp(`^(${escapeRegex(field)}:)\\s*(.*)$`, 'm');
-  const formattedValue = yamlQuote(newValue);
-  return yamlContent.replace(pattern, `$1 ${formattedValue}`);
+  const lines = yamlContent.split('\n');
+  const result: string[] = [];
+  const fieldPattern = new RegExp(`^${escapeRegex(field)}:\\s*(.*)$`);
+  let fieldLineIndex = -1;
+  let skipContinuation = false;
+  let fieldIndent = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(fieldPattern);
+
+    if (match && fieldLineIndex === -1) {
+      // Found the field line at the top level (indent 0)
+      const parsed = parseLine(line);
+      if (parsed.indent !== 0) {
+        // Not a top-level field, skip
+        result.push(line);
+        continue;
+      }
+      fieldLineIndex = i;
+      fieldIndent = parsed.indent;
+      const existingValue = match[1].trim();
+
+      // Check if the existing value is pipe-style multiline
+      if (isPipeStyleValue(existingValue)) {
+        skipContinuation = true;
+      }
+
+      // Replace this line with the new value
+      const formattedValue = yamlQuote(newValue);
+      result.push(`${field}: ${formattedValue}`);
+      continue;
+    }
+
+    // Skip continuation lines of a pipe-style block
+    if (skipContinuation) {
+      const parsed = parseLine(line);
+      // Continuation lines are blank or indented more than the field
+      if (parsed.trimmed === '' || parsed.indent > fieldIndent) {
+        continue;
+      }
+      // We've exited the pipe block
+      skipContinuation = false;
+    }
+
+    result.push(line);
+  }
+
+  return result.join('\n');
 }
 
 /**
@@ -1146,14 +1347,14 @@ export function updateYamlOptionalTopLevelField(
   const lines = yamlContent.split('\n');
   let insertIndex = -1;
 
-  // Find where to insert (after description or name)
+  // Find where to insert (after description or name, accounting for pipe-style multiline)
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith('description:')) {
-      insertIndex = i + 1;
+      insertIndex = findInsertIndexAfterTopLevelField(lines, i);
       break;
     } else if (line.startsWith('name:') && insertIndex === -1) {
-      insertIndex = i + 1;
+      insertIndex = findInsertIndexAfterTopLevelField(lines, i);
     }
   }
 
@@ -1250,13 +1451,14 @@ export function updateYamlTopLevelStringArray(
     lines.splice(fieldStartIndex, fieldEndIndex - fieldStartIndex + 1, ...newFieldLines);
   } else {
     // Insert after description (or after name if no description)
+    // Account for pipe-style multiline content that extends beyond the header line
     let insertIndex = -1;
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].startsWith('description:')) {
-        insertIndex = i + 1;
+        insertIndex = findInsertIndexAfterTopLevelField(lines, i);
         break;
       } else if (lines[i].startsWith('name:') && insertIndex === -1) {
-        insertIndex = i + 1;
+        insertIndex = findInsertIndexAfterTopLevelField(lines, i);
       }
     }
     if (insertIndex === -1) {
@@ -1307,7 +1509,9 @@ export function appendYamlItem(
     const indent = line.length - trimmed.length;
     
     // Check if we're entering the target section
-    if (trimmed.startsWith(`${section}:`)) {
+    // Only match actual section headers, not nested fields with inline values
+    // e.g., match 'assets:' or 'assets: []' but not 'assets: [A01]'
+    if (isSectionHeader(trimmed, section)) {
       inSection = true;
       sectionIndent = indent;
       
@@ -1390,7 +1594,8 @@ export function appendYamlItem(
   } else {
     // Find section header line
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trimStart().startsWith(`${section}:`)) {
+      const parsed = parseLine(lines[i]);
+      if (isSectionHeader(parsed.trimmed, section)) {
         insertAfterIndex = i;
         break;
       }
@@ -1425,7 +1630,10 @@ export function appendYamlItem(
   }
   
   // If section wasn't found at all, append new section at end
-  if (lastItemEndIndex === -1 && !lines.some(l => l.trimStart().startsWith(`${section}:`))) {
+  if (lastItemEndIndex === -1 && !lines.some(l => {
+    const p = parseLine(l);
+    return isSectionHeader(p.trimmed, section);
+  })) {
     result.push('');
     result.push(`${section}:`);
     const newItemLines = formatYamlItem(item, 2);
@@ -1458,7 +1666,8 @@ export function reorderYamlSection(
   let sectionIndent = 0;
   for (let i = 0; i < lines.length; i++) {
     const parsed = parseLine(lines[i]);
-    if (parsed.trimmed === `${section}:` || parsed.trimmed.startsWith(`${section}: `)) {
+    // Only match actual section headers, not nested fields with inline values
+    if (isSectionHeader(parsed.trimmed, section)) {
       sectionStart = i;
       sectionIndent = parsed.indent;
       break;
@@ -1644,7 +1853,8 @@ export function removeYamlItem(
     const parsed = parseLine(line);
     
     // Check if we're entering the target section
-    if (parsed.trimmed.startsWith(`${section}:`)) {
+    // Only match actual section headers, not nested fields with inline values
+    if (isSectionHeader(parsed.trimmed, section)) {
       inSection = true;
       sectionIndent = parsed.indent;
       sectionLineIndex = result.length;
@@ -1858,7 +2068,6 @@ export function normalizeYamlWhitespace(yamlContent: string): string {
   let previousLineType: 'empty' | 'section' | 'item' | 'field' | 'comment' | 'pipe-indicator' | 'pipe-content' | 'top-level-field' = 'empty';
   let inPipeBlock = false;
   let pipeBlockIndent = 0;
-  let currentSectionIndent = -1;
   let currentItemIndent = -1;
   let pipeBlockLines: string[] = []; // Accumulate pipe block lines to trim trailing whitespace
   
@@ -1917,7 +2126,6 @@ export function normalizeYamlWhitespace(yamlContent: string): string {
       currentLineType = 'comment';
       // Section-level comments reset the current section context
       if (parsed.indent === 0) {
-        currentSectionIndent = -1;
         currentItemIndent = -1;
       }
     } else if (parsed.trimmed.match(/^\w+:/) && parsed.indent === 0) {
@@ -1925,7 +2133,6 @@ export function normalizeYamlWhitespace(yamlContent: string): string {
       // Check if the value is empty or an array indicator (section)
       if (parsed.trimmed.endsWith(':') || parsed.trimmed.endsWith(': []')) {
         currentLineType = 'section';
-        currentSectionIndent = parsed.indent;
         currentItemIndent = -1;
       } else {
         currentLineType = 'top-level-field';
@@ -1991,7 +2198,8 @@ export function normalizeYamlWhitespace(yamlContent: string): string {
     result.push(...pipeBlockLines);
   }
   
-  return result.join('\n');
+  // Normalize legacy values in the final output
+  return normalizeYamlLegacyValues(result.join('\n'));
 }
 
 /**

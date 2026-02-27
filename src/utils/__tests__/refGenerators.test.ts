@@ -30,6 +30,12 @@ describe('refGenerators', () => {
     it('should handle empty strings', () => {
       expect(slugify('')).toBe('');
     });
+
+    it('should handle numeric values', () => {
+      expect(slugify(1)).toBe('1');
+      expect(slugify(2024)).toBe('2024');
+      expect(slugify(123)).toBe('123');
+    });
   });
 
   describe('regenerateAllRefs', () => {
@@ -198,6 +204,33 @@ threats:
       expect(result).toContain('ref: database');
       expect(result).toContain('ref: database-2');
       expect(result).toContain('ref: database-3');
+    });
+
+    it('should handle numeric names', () => {
+      const input = `schema_version: "1.0"
+name: Test Model
+components:
+  - ref: comp1
+    name: 1
+    component_type: internal
+  - ref: comp2
+    name: 2024
+    component_type: external
+assets:
+  - ref: asset1
+    name: 123
+boundaries:
+  - ref: boundary1
+    name: 456
+`;
+
+      const result = regenerateAllRefs(input);
+      
+      // Numeric names should be converted to slugs
+      expect(result).toContain('ref: 1');
+      expect(result).toContain('ref: 2024');
+      expect(result).toContain('ref: 123');
+      expect(result).toContain('ref: 456');
     });
   });
 });

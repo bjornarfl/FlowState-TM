@@ -245,7 +245,7 @@ assets:
           {
             ref: 'api',
             name: 'API Gateway',
-            component_type: 'external_dependency',
+            component_type: 'external',
             x: 100.7,
             y: 200.3,
           },
@@ -274,7 +274,7 @@ assets:
       expect(result).toContain('y: 400');
 
       // Check that there's exactly one blank line between components
-      expect(result).toMatch(/- ref: api\s+name: API Gateway[^\n]*\n\s+component_type: external_dependency[^\n]*\n\s+x: 101[^\n]*\n\s+y: 200\n\n\s+- ref: db/);
+      expect(result).toMatch(/- ref: api\s+name: API Gateway[^\n]*\n\s+component_type: external[^\n]*\n\s+x: 101[^\n]*\n\s+y: 200\n\n\s+- ref: db/);
       
       // Check that there's exactly one blank line between sections
       expect(result).toMatch(/y: 400\n\nassets:/);

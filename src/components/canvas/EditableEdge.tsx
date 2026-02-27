@@ -122,7 +122,6 @@ export default function EditableEdge({
 
   const handleSave = (): void => {
     const labelString = (label as string) || '';
-    const isPlaceholder = isDataFlowLabelPlaceholder(labelString);
     const newValueToSave = editValue.trim() ? editValue : labelString;
     
     if (newValueToSave !== label) {

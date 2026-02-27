@@ -43,6 +43,13 @@ export default function EditablePicker({ value, availableItems, placeholder = "A
 
   const variantClass = `picker-variant-${variant}`;
 
+  // Sync selectedItems with value prop when not editing (e.g., asset added from node toolbar)
+  useEffect(() => {
+    if (!isEditing) {
+      setSelectedItems(value || []);
+    }
+  }, [value, isEditing]);
+
   // Scroll suggestions dropdown into view when it opens
   useEffect(() => {
     if (showSuggestions && suggestionsRef.current && inputRef.current) {

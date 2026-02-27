@@ -4,9 +4,23 @@ import './DiscardModal.css';
 interface DiscardModalProps {
   onConfirm: () => void;
   onCancel: () => void;
+  onSave: () => Promise<void>;
 }
 
-export const DiscardModal: React.FC<DiscardModalProps> = ({ onConfirm, onCancel }) => {
+export const DiscardModal: React.FC<DiscardModalProps> = ({ onConfirm, onCancel, onSave }) => {
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  const handleSaveAndContinue = async () => {
+    setIsSaving(true);
+    try {
+      await onSave();
+      onConfirm();
+    } catch (error) {
+      console.error('Failed to save:', error);
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
@@ -15,13 +29,16 @@ export const DiscardModal: React.FC<DiscardModalProps> = ({ onConfirm, onCancel 
           Opening a new threat model will discard any unsaved changes to your current threat model.
         </p>
         <p>
-          Make sure you've saved your work before continuing.
+          You can save your changes before continuing, or discard them.
         </p>
         <div className="modal-actions">
-          <button className="button button-secondary" onClick={onCancel}>
+          <button className="button button-secondary" onClick={onCancel} disabled={isSaving}>
             Cancel
           </button>
-          <button className="button button-primary button-danger" onClick={onConfirm}>
+          <button className="button button-primary" onClick={handleSaveAndContinue} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save & Continue'}
+          </button>
+          <button className="button button-danger" onClick={onConfirm} disabled={isSaving}>
             Discard & Continue
           </button>
         </div>

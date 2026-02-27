@@ -109,7 +109,7 @@
         "component_type": {
           "type": "string",
           "description": "Type of component",
-          "enum": ["internal", "external_dependency", "data_store"]
+          "enum": ["internal", "external", "external_dependency", "data_store"]
         },
         "description": {
           "type": "string",

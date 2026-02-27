@@ -14,6 +14,7 @@ vi.mock('../../utils/yamlParser', () => ({
   renameDataFlowRef: vi.fn((content, oldRef, newRef) => {
     return content.replace(new RegExp(oldRef, 'g'), newRef);
   }),
+  normalizeYamlLegacyValues: vi.fn((content: string) => content),
 }));
 
 // Mock the refGenerators
@@ -296,11 +297,11 @@ describe('useThreatModelState', () => {
       });
 
       act(() => {
-        result.current.handleComponentTypeChange('comp-1', 'external_dependency');
+        result.current.handleComponentTypeChange('comp-1', 'external');
       });
 
-      expect(result.current.threatModel?.components[0].component_type).toBe('external_dependency');
-      expect(result.current.nodes[0].data.componentType).toBe('external_dependency');
+      expect(result.current.threatModel?.components[0].component_type).toBe('external');
+      expect(result.current.nodes[0].data.componentType).toBe('external');
     });
 
     it('should update component description and sync with nodes', () => {
@@ -410,6 +411,24 @@ describe('useThreatModelState', () => {
 
       expect(result.current.threatModel?.boundaries?.[0].width).toBe(500);
       expect(result.current.threatModel?.boundaries?.[0].height).toBe(400);
+    });
+
+    it('should update boundary position on resize from non-bottom-right corner', () => {
+      const { result } = renderHook(() => useThreatModelState());
+
+      act(() => {
+        result.current.setThreatModel(mockThreatModel);
+        result.current.setYamlContent('name: Test');
+      });
+
+      act(() => {
+        result.current.handleBoundaryResizeEnd('boundary-1', 500, 400, 100, 150);
+      });
+
+      expect(result.current.threatModel?.boundaries?.[0].width).toBe(500);
+      expect(result.current.threatModel?.boundaries?.[0].height).toBe(400);
+      expect(result.current.threatModel?.boundaries?.[0].x).toBe(100);
+      expect(result.current.threatModel?.boundaries?.[0].y).toBe(150);
     });
   });
 

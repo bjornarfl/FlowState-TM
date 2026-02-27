@@ -1,2 +1,229 @@
-/* Navbar styles are defined in App.css for now */
-/* This file is here for future navbar-specific styles if needed */
+.navbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  height: 48px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px var(--shadow-color);
+  z-index: 10000;
+}
+
+.navbar-left {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding-left: 0.75rem;
+}
+
+.navbar-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    padding: 0;
+    letter-spacing: 0.5px;
+    border: none;
+    line-height: 48px;
+    display: block;
+}
+
+.navbar-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 48px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  border: none !important;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: stretch;
+}
+
+.navbar-button {
+  width: 48px;
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.navbar-button:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.navbar-button:active {
+  background: var(--bg-active);
+  color: var(--text-secondary);
+}
+
+.navbar-button.collapse-button {
+  border-right: 1px solid var(--border-color);
+}
+
+.navbar-button.save-browser-button {
+  border-left: 1px solid var(--border-color);
+}
+
+.navbar-button.download-button {
+  border-left: 1px solid var(--border-color);
+}
+
+/* Ensure navbar back button overrides FileBrowser styles */
+.navbar .navbar-button.back-button {
+  padding: 0;
+  width: 48px;
+  background: var(--bg-primary);
+  border: none;
+  border-radius: 0;
+  color: var(--text-secondary);
+}
+
+.navbar-button.canvas-collapse-button {
+  border-right: 1px solid var(--border-color);
+}
+
+.navbar-github-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  margin-left: 0.75rem;
+  background: var(--accent-color-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  pointer-events: auto;
+  text-decoration: none;
+}
+
+.navbar-github-indicator:hover {
+  background: var(--bg-hover);
+  color: white;
+}
+
+.navbar-github-indicator span {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navbar-local-file-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  margin-left: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.navbar-local-file-indicator span {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Unified save indicator ──────────────────────────────────────────── */
+
+.navbar-save-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  margin-left: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  pointer-events: auto;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navbar-save-indicator--github {
+  background: var(--accent-color-muted);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.navbar-save-indicator--github:hover {
+  background: var(--bg-hover);
+  color: white;
+}
+
+.navbar-save-indicator--file {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.navbar-save-indicator--browser {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.navbar-save-indicator--none {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.navbar-indicator-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navbar-indicator-saved {
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-size: 0.6875rem;
+  opacity: 0.8;
+}
+
+.navbar-indicator-dirty {
+  color: var(--accent-color, #3b82f6);
+  font-size: 0.875rem;
+  line-height: 1;
+  margin-left: -0.125rem;
+}
+
+/* ── Dropdown shortcut label ──────────────────────────────────────────── */
+
+.navbar-dropdown-shortcut {
+  margin-left: auto;
+  padding-left: 1rem;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  font-weight: 400;
+}

@@ -10,7 +10,7 @@ export interface BoundaryNodeData {
   initialEditMode?: boolean;
   onNameChange?: (newName: string) => void;
   onEditModeChange?: (isEditing: boolean) => void;
-  onResizeEnd?: (width: number, height: number) => void;
+  onResizeEnd?: (width: number, height: number, x: number, y: number) => void;
 }
 
 /**
@@ -79,7 +79,6 @@ export default function BoundaryNode({ data, selected }: { data: BoundaryNodeDat
   };
 
   const handleSave = (): void => {
-    const isPlaceholder = isBoundaryNamePlaceholder(label);
     const newValueToSave = editValue.trim() ? editValue : label;
     
     if (newValueToSave !== label) {
@@ -114,7 +113,7 @@ export default function BoundaryNode({ data, selected }: { data: BoundaryNodeDat
         handleClassName="boundary-resize-handle"
         onResizeEnd={(_event: any, params: any) => {
           if (onResizeEnd && params.width && params.height) {
-            onResizeEnd(Math.round(params.width), Math.round(params.height));
+            onResizeEnd(Math.round(params.width), Math.round(params.height), Math.round(params.x), Math.round(params.y));
           }
         }}
       />
@@ -124,6 +123,9 @@ export default function BoundaryNode({ data, selected }: { data: BoundaryNodeDat
         onMouseLeave={() => setIsHovering(false)}
         onDoubleClick={handleDoubleClick}
       >
+        {/* Invisible border frame — captures pointer events for drag/select
+            while letting clicks in the interior pass through to edges below */}
+        <div className="boundary-drag-frame" />
         <div className="boundary-label-container noDrag">
           {isEditing ? (
             <input

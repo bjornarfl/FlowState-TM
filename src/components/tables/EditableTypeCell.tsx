@@ -9,7 +9,7 @@ interface TypeOption {
 
 const COMPONENT_TYPES: TypeOption[] = [
   { value: 'internal', label: 'Internal' },
-  { value: 'external_dependency', label: 'External' },
+  { value: 'external', label: 'External' },
   { value: 'data_store', label: 'Data Store' },
 ];
 

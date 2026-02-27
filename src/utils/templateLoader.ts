@@ -1,13 +1,54 @@
 /**
  * Template Loader Utility
- * Handles loading threat model templates from various sources
+ * Handles loading threat model templates from the templates/index.json manifest
  */
+
+import { resolvePath } from '../config';
 
 export interface TemplateMetadata {
   name: string;
+  file: string;
   path: string;
   description?: string;
   tags?: string[];
+  order?: number;
+}
+
+export interface TemplateIndex {
+  templates: Omit<TemplateMetadata, 'path'>[];
+}
+
+/**
+ * Cache for template index and content
+ */
+const cache: {
+  index: TemplateIndex | null;
+  content: Map<string, string>;
+} = {
+  index: null,
+  content: new Map(),
+};
+
+/**
+ * Loads the template index file
+ */
+export async function loadTemplateIndex(): Promise<TemplateIndex> {
+  if (cache.index) {
+    return cache.index;
+  }
+
+  try {
+    const response = await fetch(resolvePath('templates/index.json'));
+    if (!response.ok) {
+      throw new Error(`Failed to load template index: ${response.statusText}`);
+    }
+    const data = await response.json();
+    cache.index = data;
+    return data;
+  } catch (error) {
+    console.error('Error loading template index:', error);
+    throw error;
+  }
 }
 
 /**
@@ -16,13 +57,19 @@ export interface TemplateMetadata {
 export const loadTemplateByPath = async (
   path: string
 ): Promise<string> => {
-  const response = await fetch(`${import.meta.env.BASE_URL}${path}`);
+  if (cache.content.has(path)) {
+    return cache.content.get(path)!;
+  }
+
+  const response = await fetch(resolvePath(path));
   if (!response.ok) {
     throw new Error(
       `Failed to load template from ${path}: ${response.statusText}`
     );
   }
-  return response.text();
+  const text = await response.text();
+  cache.content.set(path, text);
+  return text;
 };
 
 /**
@@ -35,80 +82,22 @@ export const parseThreateModelFile = async (
 };
 
 /**
- * Get all available templates
- * Currently returns a static list, can be enhanced to read from a manifest
+ * Get all available templates from the index.json manifest
  */
-export const getAvailableTemplates = (): TemplateMetadata[] => {
-  return [
-    {
-      name: 'Simple Web Application',
-      path: 'templates/simple.yaml',
-      description:
-        'A basic threat model for a web application with user, web server, and database',
-      tags: ['web', 'basic', 'beginner'],
-    },
-    {
-      name: 'Version Control and CI CD',
-      path: 'templates/version_control_and_cicd.yaml',
-      description:
-        'Threat model for the usage of GitHub to code and deploy applications',
-      tags: ['cicd', 'intermediate'],
-    },
-    {
-      name: 'API Provider',
-      path: 'templates/api_provider.yaml',
-      description:
-        'Basic architecture to provide an API endpoint',
-      tags: ['api', 'provider', 'intermediate'],
-    },
-    {
-      name: 'Mobile App with Backend',
-      path: 'templates/mobile_app_backend.yaml',
-      description:
-        'A mobile application communicating with backend services including authentication, API gateway, and database',
-      tags: ['mobile', 'backend', 'api', 'intermediate', 'AI-generated'],
-    },
-    {
-      name: 'Serverless Architecture',
-      path: 'templates/serverless_architecture.yaml',
-      description:
-        'Event-driven serverless application with functions, API gateway, managed database, object storage, and message queues',
-      tags: ['serverless', 'cloud', 'lambda', 'event-driven', 'advanced', 'AI-generated'],
-    },
-    {
-      name: 'Containerized Microservices',
-      path: 'templates/containerized_microservices.yaml',
-      description:
-        'Kubernetes-orchestrated microservices with service mesh, ingress controller, container registry, and persistent storage',
-      tags: ['kubernetes', 'containers', 'microservices', 'docker', 'service-mesh', 'advanced', 'AI-generated'],
-    },
-    {
-      name: 'IoT System',
-      path: 'templates/iot_system.yaml',
-      description:
-        'Internet of Things architecture with edge devices, gateways, IoT hub, stream processing, and device management',
-      tags: ['iot', 'edge', 'devices', 'sensors', 'telemetry', 'advanced', 'AI-generated'],
-    },
-    {
-      name: 'Web App with CDN',
-      path: 'templates/web_app_cdn.yaml',
-      description:
-        'Web application delivered through CDN with origin server, application backend, database, and caching layer',
-      tags: ['web', 'cdn', 'cache', 'intermediate', 'AI-generated'],
-    },
-    {
-      name: 'Payment Processing Flow',
-      path: 'templates/payment_processing.yaml',
-      description:
-        'Online payment processing flow including card data handling, payment gateway integration, fraud detection, and webhooks',
-      tags: ['payment', 'pci-dss', 'e-commerce', 'business-flow', 'intermediate', 'AI-generated'],
-    },
-    // Future templates can be added here:
-    // {
-    //   name: 'Microservices Architecture',
-    //   path: 'templates/microservices.yaml',
-    //   description: 'A threat model for microservices-based applications',
-    //   tags: ['microservices', 'advanced'],
-    // },
-  ];
+export const getAvailableTemplates = async (): Promise<TemplateMetadata[]> => {
+  const index = await loadTemplateIndex();
+  return index.templates
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((t) => ({
+      ...t,
+      path: `templates/${t.file}`,
+    }));
 };
+
+/**
+ * Clears the template cache
+ */
+export function clearTemplateCache(): void {
+  cache.index = null;
+  cache.content.clear();
+}

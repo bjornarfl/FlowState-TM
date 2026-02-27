@@ -7,8 +7,9 @@ import { useCallback } from 'react';
 import { toSvg } from 'html-to-image';
 import JSZip from 'jszip';
 import type { ThreatModel } from '../types/threatModel';
-import type { GitHubMetadata } from '../components/integrations/github/types';
+import type { GitHubMetadata } from '../integrations/github/types';
 import { generateConfluenceMarkup, copyConfluenceToClipboard } from '../utils/confluenceFormatter';
+import { getAppUrl } from '../config';
 
 /**
  * Generate markdown documentation from the threat model
@@ -52,12 +53,12 @@ function generateMarkdown(
     // Helper function to generate component node
     const generateComponentNode = (component: typeof threatModel.components[0], idx: number, indent: string = '    ') => {
       const nodeId = `C${idx}`;
-      const nodeName = component.name.replace(/["\[\]]/g, '');
+      const nodeName = String(component.name).replace(/["\[\]]/g, '');
       
       // Different shapes for different component types
       if (component.component_type === 'data_store') {
         lines.push(`${indent}${nodeId}[(${nodeName})]`);
-      } else if (component.component_type === 'external_dependency') {
+      } else if (component.component_type === 'external') {
         lines.push(`${indent}${nodeId}[${nodeName}]`);
       } else {
         lines.push(`${indent}${nodeId}(${nodeName})`);
@@ -86,7 +87,7 @@ function generateMarkdown(
       const componentsInBoundaries = new Set<string>();
       
       threatModel.boundaries.forEach((boundary, boundaryIdx) => {
-        const boundaryName = boundary.name.replace(/["\[\]]/g, '');
+        const boundaryName = String(boundary.name).replace(/["\[\]]/g, '');
         
         if (boundary.components && boundary.components.length > 0) {
           lines.push(`    subgraph B${boundaryIdx}["${boundaryName}"]`);
@@ -259,12 +260,13 @@ function generateMarkdown(
   // Footer with FlowState TM link
   lines.push('---');
   lines.push('');
+  const appUrl = getAppUrl();
   if (githubMetadata) {
-    const url = `https://${window.location.host}/github/${githubMetadata.owner}/${githubMetadata.repository}/${githubMetadata.path}?branch=${githubMetadata.branch}`;
+    const url = `${appUrl}/github/${githubMetadata.owner}/${githubMetadata.repository}/${githubMetadata.path}?branch=${githubMetadata.branch}`;
     const url2 = `https://${githubMetadata.domain}/${githubMetadata.owner}/${githubMetadata.repository}/blob/${githubMetadata.branch}/.threat-models/${githubMetadata.path}`;
-    lines.push(`[Made with FlowState TM](https://github.com/bjornarfl/FlowState-TM) - [See Source File on GitHub](${url2}) - Edit source file [here](${url})`);
+    lines.push(`[Made with FlowState TM](${appUrl}) - [See Source File on GitHub](${url2}) - Edit source file [here](${url})`);
   } else {
-    lines.push('[Made with FlowState TM](https://github.com/bjornarfl/FlowState-TM)');
+    lines.push(`[Made with FlowState TM](${appUrl})`);
   }
 
   return lines.join('\n');
@@ -340,13 +342,6 @@ export function useDiagramExport(
       // Calculate the bounding box of all nodes using their actual positions
       const nodes = viewport.querySelectorAll('.react-flow__node');
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      
-      // Parse viewport transform to get current pan/zoom
-      const transform = viewport.style.transform;
-      const transformMatch = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)\s*scale\(([-\d.]+)\)/);
-      const viewportX = transformMatch ? parseFloat(transformMatch[1]) : 0;
-      const viewportY = transformMatch ? parseFloat(transformMatch[2]) : 0;
-      const viewportZoom = transformMatch ? parseFloat(transformMatch[3]) : 1;
       
       nodes.forEach((node) => {
         const nodeElement = node as HTMLElement;

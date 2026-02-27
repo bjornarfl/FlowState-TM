@@ -3,7 +3,10 @@
  * Based on threat_model.schema.json
  */
 
-export type ComponentType = 'internal' | 'external_dependency' | 'data_store';
+export type ComponentType = 'internal' | 'external' | 'data_store';
+
+/** @deprecated Use 'external' instead. Kept for backwards compatibility with existing YAML files. */
+export type LegacyComponentType = ComponentType | 'external_dependency';
 export type Direction = 'unidirectional' | 'bidirectional';
 
 export interface Asset {

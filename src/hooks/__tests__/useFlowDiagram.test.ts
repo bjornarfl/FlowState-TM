@@ -842,7 +842,7 @@ describe('useFlowDiagram', () => {
 
       expect(() => {
         act(() => {
-          result.current.onNodeDragStop({}, { id: 'comp-1' });
+          result.current.onNodeDragStop({}, { id: 'comp-1' }, []);
         });
       }).not.toThrow();
     });

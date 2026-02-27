@@ -1,12 +1,44 @@
 /* Boundary Node Styles */
 
+/* Allow pointer events to pass through boundary nodes to edges below */
+.react-flow__node-boundaryNode {
+  pointer-events: none !important;
+}
+
 .boundary-node {
   width: 100%;
   height: 100%;
   border: 2px dashed var(--entity-boundaries-border);
   background: transparent;
   position: relative;
+  pointer-events: none;
+}
+
+/* Invisible border frame that captures pointer events for dragging/selecting.
+   Uses clip-path evenodd to create an interactive border strip that extends
+   8px outside and 15px inside the boundary, letting clicks in the interior
+   pass through to edges underneath. */
+.boundary-drag-frame {
+  position: absolute;
+  inset: -8px;
+  pointer-events: auto;
   cursor: move;
+  clip-path: polygon(
+    evenodd,
+    0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+    23px 23px, calc(100% - 23px) 23px, calc(100% - 23px) calc(100% - 23px), 23px calc(100% - 23px), 23px 23px
+  );
+}
+
+/* When the boundary is selected, shrink the drag frame back inside
+   so it doesn't cover the resize handles at the corners/edges. */
+.react-flow__node.selected .boundary-drag-frame {
+  inset: 0;
+  clip-path: polygon(
+    evenodd,
+    0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+    15px 15px, calc(100% - 15px) 15px, calc(100% - 15px) calc(100% - 15px), 15px calc(100% - 15px), 15px 15px
+  );
 }
 
 /* Darker border when selected */
@@ -23,6 +55,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  pointer-events: auto;
 }
 
 .boundary-label {
@@ -95,6 +128,7 @@
   border: 2px solid var(--entity-boundaries-border) !important;
   opacity: 0.9 !important;
   transition: all 0.15s ease !important;
+  pointer-events: auto !important;
 }
 
 .boundary-resize-handle:hover {
@@ -107,4 +141,5 @@
 /* Hide the resize lines - just use the handles */
 .boundary-resize-line {
   opacity: 0 !important;
+  pointer-events: none !important;
 }

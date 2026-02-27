@@ -358,8 +358,8 @@ const ComponentsTable = React.memo(forwardRef<ComponentsTableRef, ComponentsTabl
               <button
                 className="add-row-button add-row-components"
                 onClick={() => {
-                  shouldFocusNewComponent.current = { focus: true, type: 'external_dependency' };
-                  onAddComponent('external_dependency');
+                  shouldFocusNewComponent.current = { focus: true, type: 'external' };
+                  onAddComponent('external');
                 }}
               >
                 + Add External

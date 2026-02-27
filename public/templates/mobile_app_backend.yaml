@@ -24,7 +24,7 @@ assets:
 components:
   - ref: mobile_app
     name: Mobile Application
-    component_type: external_dependency
+    component_type: external
     x: -250
     y: 0
     description: Native or hybrid mobile application running on user devices (iOS/Android)
@@ -32,7 +32,7 @@ components:
 
   - ref: mobile_user
     name: Mobile User
-    component_type: external_dependency
+    component_type: external
     x: -250
     y: -120
     description: End user interacting with the mobile application
@@ -71,7 +71,7 @@ components:
 
   - ref: analytics_service
     name: Analytics Service
-    component_type: external_dependency
+    component_type: external
     x: -249
     y: 145
     description: Third-party service for tracking app usage and user behavior

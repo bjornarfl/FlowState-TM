@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { produce } from 'immer';
 import type { ThreatModel, ComponentType, Direction } from '../types/threatModel';
-import { updateYamlField, updateYamlTopLevelField, updateYamlOptionalTopLevelField, updateYamlTopLevelStringArray, renameDataFlowRef, reorderYamlSection } from '../utils/yamlParser';
+import { updateYamlField, updateYamlTopLevelField, updateYamlTopLevelStringArray, renameDataFlowRef, reorderYamlSection, normalizeYamlLegacyValues } from '../utils/yamlParser';
 import { generateDataFlowRef } from '../utils/refGenerators';
 import { createSimpleFieldHandler, createArrayFieldHandler } from '../utils/handlerFactory';
 import { useUndoRedo } from './useUndoRedo';
@@ -78,7 +78,7 @@ export interface UseThreatModelStateResult {
   // Boundary handlers
   handleBoundaryNameChange: (boundaryRef: string, newName: string) => void;
   handleBoundaryDescriptionChange: (boundaryRef: string, newDescription: string) => void;
-  handleBoundaryResizeEnd: (boundaryRef: string, width: number, height: number) => void;
+  handleBoundaryResizeEnd: (boundaryRef: string, width: number, height: number, x?: number, y?: number) => void;
   
   // Data flow handlers
   handleDataFlowLabelChange: (dataFlowRef: string, newLabel: string) => void;
@@ -102,7 +102,16 @@ export function useThreatModelState(): UseThreatModelStateResult {
   const [nodes, setNodes] = useState<any[]>([]);
   const [edges, setEdges] = useState<any[]>([]);
   const [threatModel, setThreatModel] = useState<ThreatModel | null>(null);
-  const [yamlContent, setYamlContent] = useState<string>('');
+  const [yamlContent, _setYamlContentRaw] = useState<string>('');
+  // Wrap setter to normalize legacy values (e.g. external_dependency → external)
+  const setYamlContent: React.Dispatch<React.SetStateAction<string>> = useCallback(
+    (action) => _setYamlContentRaw(
+      typeof action === 'function'
+        ? (prev) => normalizeYamlLegacyValues(action(prev))
+        : normalizeYamlLegacyValues(action)
+    ),
+    []
+  );
   const [isDraggingEdge, setIsDraggingEdge] = useState(false);
   const [isDraggingNode, setIsDraggingNode] = useState<string | null>(null);
   const [isEditingMode, setIsEditingMode] = useState(false);
@@ -234,49 +243,49 @@ export function useThreatModelState(): UseThreatModelStateResult {
   );
 
   const handleControlStatusChange = useCallback(
-    (ref: string, newValue: string) => {
+    (ref: string, newValue: string | undefined) => {
       const handler = withHistory(createSimpleFieldHandler('controls', 'status', setThreatModel, updateYaml, updateYamlField));
-      handler(ref, newValue);
+      handler(ref, newValue as string);
     },
     [updateYaml, withHistory]
   );
 
   const handleControlStatusLinkChange = useCallback(
-    (ref: string, newValue: string) => {
+    (ref: string, newValue: string | undefined) => {
       const handler = withHistory(createSimpleFieldHandler('controls', 'status_link', setThreatModel, updateYaml, updateYamlField));
-      handler(ref, newValue);
+      handler(ref, newValue as string);
     },
     [updateYaml, withHistory]
   );
 
   const handleControlStatusNoteChange = useCallback(
-    (ref: string, newValue: string) => {
+    (ref: string, newValue: string | undefined) => {
       const handler = withHistory(createSimpleFieldHandler('controls', 'status_note', setThreatModel, updateYaml, updateYamlField));
-      handler(ref, newValue);
+      handler(ref, newValue as string);
     },
     [updateYaml, withHistory]
   );
 
   const handleThreatStatusChange = useCallback(
-    (ref: string, newValue: string) => {
+    (ref: string, newValue: string | undefined) => {
       const handler = withHistory(createSimpleFieldHandler('threats', 'status', setThreatModel, updateYaml, updateYamlField));
-      handler(ref, newValue);
+      handler(ref, newValue as string);
     },
     [updateYaml, withHistory]
   );
 
   const handleThreatStatusLinkChange = useCallback(
-    (ref: string, newValue: string) => {
+    (ref: string, newValue: string | undefined) => {
       const handler = withHistory(createSimpleFieldHandler('threats', 'status_link', setThreatModel, updateYaml, updateYamlField));
-      handler(ref, newValue);
+      handler(ref, newValue as string);
     },
     [updateYaml, withHistory]
   );
 
   const handleThreatStatusNoteChange = useCallback(
-    (ref: string, newValue: string) => {
+    (ref: string, newValue: string | undefined) => {
       const handler = withHistory(createSimpleFieldHandler('threats', 'status_note', setThreatModel, updateYaml, updateYamlField));
-      handler(ref, newValue);
+      handler(ref, newValue as string);
     },
     [updateYaml, withHistory]
   );
@@ -456,8 +465,8 @@ export function useThreatModelState(): UseThreatModelStateResult {
     })(boundaryRef, newDescription);
   }, [updateYaml, withHistory]);
 
-  const handleBoundaryResizeEnd = useCallback((boundaryRef: string, width: number, height: number): void => {
-    withHistory((boundaryRef: string, width: number, height: number): void => {
+  const handleBoundaryResizeEnd = useCallback((boundaryRef: string, width: number, height: number, x?: number, y?: number): void => {
+    withHistory((boundaryRef: string, width: number, height: number, x?: number, y?: number): void => {
       setThreatModel(
         produce((draft) => {
           if (!draft) return;
@@ -465,6 +474,8 @@ export function useThreatModelState(): UseThreatModelStateResult {
           if (boundary) {
             boundary.width = width;
             boundary.height = height;
+            if (x !== undefined) boundary.x = x;
+            if (y !== undefined) boundary.y = y;
           }
         })
       );
@@ -472,9 +483,11 @@ export function useThreatModelState(): UseThreatModelStateResult {
       updateYaml((content) => {
         let updated = updateYamlField(content, 'boundaries', boundaryRef, 'width', width);
         updated = updateYamlField(updated, 'boundaries', boundaryRef, 'height', height);
+        if (x !== undefined) updated = updateYamlField(updated, 'boundaries', boundaryRef, 'x', x);
+        if (y !== undefined) updated = updateYamlField(updated, 'boundaries', boundaryRef, 'y', y);
         return updated;
       });
-    })(boundaryRef, width, height);
+    })(boundaryRef, width, height, x, y);
   }, [updateYaml, withHistory]);
 
   const handleDataFlowLabelChange = useCallback((dataFlowRef: string, newLabel: string): void => {

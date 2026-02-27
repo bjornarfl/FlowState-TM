@@ -8,7 +8,7 @@ import './ThreatModelNode.css';
 
 const COMPONENT_TYPES: { value: ComponentType; label: string; className: string }[] = [
   { value: 'internal', label: 'Internal', className: 'type-internal' },
-  { value: 'external_dependency', label: 'External', className: 'type-external' },
+  { value: 'external', label: 'External', className: 'type-external' },
   { value: 'data_store', label: 'Data Store', className: 'type-datastore' },
 ];
 
@@ -16,7 +16,7 @@ const COMPONENT_TYPES: { value: ComponentType; label: string; className: string 
  * Custom node component for threat model components
  * Renders different styles based on component type:
  * - internal: Rounded rectangle
- * - external_dependency: Sharp rectangle
+ * - external: Sharp rectangle
  * - data_store: Parallel lines (top and bottom)
  */
 export default function ThreatModelNode({ data, selected }: { data: ThreatModelNodeData; selected?: boolean }): React.JSX.Element {
@@ -75,7 +75,7 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
   // Determine node class based on component type
   const getNodeClass = (): string => {
     switch (componentType) {
-      case 'external_dependency':
+      case 'external':
         return 'threat-node external-dependency';
       case 'data_store':
         return 'threat-node data-store';

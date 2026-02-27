@@ -1,6 +1,7 @@
 schema_version: '1.0'
 name: Version Control and CICD
 description: |
+  The use of CI/CD tooling as described in the CI/CD Tech Standard
   Push/pull/merge/rebase/copy between developer machine and repository
   Build application and deploy to target environment
 
@@ -54,7 +55,7 @@ components:
 
   - ref: developer
     name: Developer
-    component_type: external_dependency
+    component_type: external
     x: -324
     y: 0
     description: The user that is interacting with CI/CD and version control systems
@@ -62,14 +63,14 @@ components:
 
   - ref: entra_id
     name: Entra ID
-    component_type: external_dependency
+    component_type: external
     x: -182
     y: -108
     description: Central identity and Access Management solution
 
   - ref: reusable_workflows
     name: Reusable Workflows
-    component_type: external_dependency
+    component_type: external
     x: 154
     y: 15
     description: |
@@ -79,7 +80,7 @@ components:
 
   - ref: target_environment
     name: Target Environment
-    component_type: external_dependency
+    component_type: external
     x: 161
     y: 154
     description: |

@@ -1,0 +1,171 @@
+/* ── Tab Panel Header ───────────────────────────────────────────────── */
+
+.tab-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 4px 0 10px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  z-index: 5;
+  user-select: none;
+}
+
+.tab-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.tab-panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tab-panel-header-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.tab-panel-header-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+/* Chevron button for view selector dropdown */
+.tab-panel-header-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab-panel-header-chevron:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* Action buttons (add, close) */
+.tab-panel-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab-panel-header-btn:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* View selector dropdown */
+.tab-panel-header-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 120px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  margin-top: 4px;
+}
+
+.tab-panel-header-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab-panel-header-dropdown-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tab-panel-header-dropdown-item.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* ── Drag handle ────────────────────────────────────────────────────── */
+
+.tab-panel-header-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: grab;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+  touch-action: none;
+}
+
+.tab-panel-header-drag-handle:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.tab-panel-header-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* In-place item dims while being dragged */
+.tab-panel-header--dragging {
+  opacity: 0.3;
+}
+
+/* Floating overlay that follows the cursor (rendered in a portal) */
+.tab-panel-header--overlay {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  cursor: grabbing;
+}
+
+

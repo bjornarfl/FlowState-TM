@@ -102,7 +102,7 @@
   --overlay-bg: rgba(0, 0, 0, 0.7);
   --accent-blue: #3c6daa;
   --accent-blue-hover: #6099f3;
-  --node-border: #6b7280;
+  --node-border: #d7c9c9;
   
   /* Entity colors - Dark mode */
   /* Assets */
@@ -121,9 +121,9 @@
   --entity-dataflows-text: #bfdbfe;
   
   /* Boundaries */
-  --entity-boundaries-bg: #7f1d1d;
-  --entity-boundaries-border: #ab2424;
-  --entity-boundaries-text: #fecaca;
+  --entity-boundaries-bg: #9a2929;
+  --entity-boundaries-border: #ba2f2f;
+  --entity-boundaries-text: #d82c2c;
   
   /* Threats */
   --entity-threats-bg: #7f1d1d;
@@ -430,272 +430,6 @@
   background: #2563eb;
 }
 
-.navbar {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  height: 48px;
-  background: var(--bg-primary);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 1px 3px var(--shadow-color);
-  z-index: 100;
-}
-
-.navbar-left {
-  display: flex;
-  align-items: stretch;
-}
-
-.navbar-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  left: 50%;
-  top: 0;
-  height: 48px;
-  transform: translateX(-50%);
-  pointer-events: none;
-  border: none !important;
-}
-
-.navbar-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  padding: 0;
-  letter-spacing: 0.5px;
-  border: none;
-  height: auto;
-  display: block;
-}
-
-.navbar-right {
-  display: flex;
-  align-items: stretch;
-}
-
-.navbar-button {
-  width: 48px;
-  height: 100%;
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.navbar-button:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-}
-
-.navbar-button:active {
-  background: var(--bg-active);
-  color: var(--text-secondary);
-}
-
-.navbar-button.collapse-button {
-  border-right: 1px solid var(--border-color);
-}
-
-.navbar-button.save-browser-button {
-  border-left: 1px solid var(--border-color);
-}
-
-.navbar-button.download-button {
-  border-left: 1px solid var(--border-color);
-}
-
-/* Ensure navbar back button overrides FileBrowser styles */
-.navbar .navbar-button.back-button {
-  padding: 0;
-  width: 48px;
-  background: var(--bg-primary);
-  border: none;
-  border-radius: 0;
-  color: var(--text-secondary);
-}
-
-.navbar-button.canvas-collapse-button {
-  border-right: 1px solid var(--border-color);
-}
-
-.navbar-toggle {
-  display: flex;
-  align-items: stretch;
-  height: 100%;
-}
-
-.navbar-toggle-button {
-  padding: 0 16px;
-  height: 100%;
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  border: none;
-  border-right: 1px solid var(--border-color);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.navbar-toggle-button:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.navbar-toggle-button.active {
-  background: var(--bg-active);
-  color: var(--text-primary);
-}
-
-.navbar-toggle-button.active:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.navbar-github-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.5rem;
-  margin-left: 0.75rem;
-  background: var(--accent-color-muted);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  pointer-events: auto;
-  text-decoration: none;
-}
-
-.navbar-github-indicator:hover {
-  background: var(--bg-hover);
-  color: white;
-}
-
-.navbar-github-indicator span {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.navbar-local-file-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.5rem;
-  margin-left: 0.75rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-
-.navbar-local-file-indicator span {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Unified save indicator ──────────────────────────────────────────── */
-
-.navbar-save-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.625rem;
-  margin-left: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.15s ease;
-  pointer-events: auto;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.navbar-save-indicator--github {
-  background: var(--accent-color-muted);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.navbar-save-indicator--github:hover {
-  background: var(--bg-hover);
-  color: white;
-}
-
-.navbar-save-indicator--file {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-}
-
-.navbar-save-indicator--browser {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-}
-
-.navbar-save-indicator--none {
-  background: transparent;
-  border-color: transparent;
-  color: var(--text-secondary);
-  opacity: 0.7;
-}
-
-.navbar-indicator-name {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.navbar-indicator-saved {
-  color: var(--text-secondary);
-  font-weight: 400;
-  font-size: 0.6875rem;
-  opacity: 0.8;
-}
-
-.navbar-indicator-dirty {
-  color: var(--accent-color, #3b82f6);
-  font-size: 0.875rem;
-  line-height: 1;
-  margin-left: -0.125rem;
-}
-
-/* ── Dropdown shortcut label ──────────────────────────────────────────── */
-
-.navbar-dropdown-shortcut {
-  margin-left: auto;
-  padding-left: 1rem;
-  font-size: 0.6875rem;
-  color: var(--text-secondary);
-  opacity: 0.7;
-  font-weight: 400;
-}
-
 .content-wrapper {
   display: flex;
   flex: 1;
@@ -703,17 +437,11 @@
   position: relative;
 }
 
+
 .diagram-section {
   flex: 1;
   min-width: 0;
   position: relative;
-  transition: width 0.3s ease;
-}
-
-.diagram-section.collapsed {
-  width: 0;
-  min-width: 0;
-  display: none;
 }
 
 .diagram-section .react-flow__container {
@@ -722,7 +450,6 @@
 }
 
 .tables-container {
-  /* width is now controlled by inline style */
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
@@ -741,18 +468,6 @@
 
 .tables-divider {
   margin-top: 32px;
-}
-
-.tables-container.collapsed {
-  width: 0;
-  padding: 0;
-  border: none;
-  flex-shrink: 0;
-}
-
-.content-wrapper:has(.diagram-section.collapsed) .tables-container {
-  width: 100%;
-  flex-shrink: 1;
 }
 
 /* When showing YAML editor, remove padding */
@@ -1401,104 +1116,14 @@ code {
   border-color: var(--border-color) !important;
 }
 
-/* Responsive styles for smaller screens */
-@media (max-width: 1000px) {
-  /* Hide navbar center title and indicators on smaller screens */
-  .navbar-center {
-    display: none;
-  }
-
-  /* Hide desktop toggle buttons and collapse buttons */
-  .navbar-toggle-desktop,
-  .navbar-button-desktop {
-    display: none !important;
-  }
-
-  /* Show mobile toggle with 3 buttons */
-  .navbar-toggle-mobile {
-    display: flex !important;
-  }
-
-  /* Adjust navbar button spacing for mobile */
-  .navbar-toggle-button {
-    padding: 0 12px;
-    font-size: 12px;
-  }
-
-  .navbar-toggle-button span {
-    display: none;
-  }
-
-  /* On smaller screens, show only one view at a time based on data-mobile-view attribute */
-  .content-wrapper {
-    position: relative;
-  }
-
-  /* Hide all sections by default on mobile */
-  [data-mobile-view] .tables-container,
-  [data-mobile-view] .diagram-section {
-    display: none;
-  }
-
-  /* Show tables section when mobile view is 'tables' */
-  [data-mobile-view="tables"] .tables-container:not(.yaml-view) {
-    display: flex;
-    width: 100% !important;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10;
-  }
-
-  /* Show YAML section when mobile view is 'yaml' */
-  [data-mobile-view="yaml"] .tables-container.yaml-view {
-    display: flex;
-    width: 100% !important;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10;
-  }
-
-  /* Show canvas section when mobile view is 'canvas' */
-  [data-mobile-view="canvas"] .diagram-section {
-    display: block;
-    width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10;
-  }
-
-  /* Hide resize divider on small screens */
-  .resize-divider {
-    display: none;
-  }
-}
-
-/* Default: hide mobile toggle on desktop */
-.navbar-toggle-mobile {
-  display: none;
-}
-
 @media (max-width: 600px) {
-  /* Further optimize for mobile phones */
+  /* Optimize for small screens */
   .navbar-button {
     width: 44px;
   }
 
-  .navbar-toggle-button {
-    padding: 0 10px;
-  }
-
-  /* Reduce padding in tables section for mobile */
-  .tables-container {
+  /* Reduce padding in tables section */
+  .tab-panel-tables {
     padding: 6px;
   }
 

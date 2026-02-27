@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ExternalLink, ListTodo, Ellipsis, Check, X, Plus, Github, Lock, Activity, ShieldOff, SearchAlert } from 'lucide-react';
 import { ControlStatus, ThreatStatus, Control, Threat, ThreatModel } from '../../types/threatModel';
-import { GitHubMetadata } from '../integrations/github/types';
+import { GitHubMetadata } from '../../integrations/github/types';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { usePortalPosition } from '../../hooks/usePortalPosition';
-import { generateGitHubIssueUrl } from '../../utils/githubIssueGenerator';
+import { generateGitHubIssueUrl } from '../../integrations/github/utils/githubIssueGenerator';
 import './EditableStatusPickerCell.css';
 
 interface StatusOption<T extends string> {

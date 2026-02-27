@@ -5,7 +5,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import type { GitHubMetadata } from '../components/integrations/github/types';
+import type { GitHubMetadata } from '../integrations/github/types';
 
 // ── Save source discriminated union ──────────────────────────────────────────
 

@@ -52,7 +52,6 @@ const EditableTextarea = forwardRef<HTMLTextAreaElement, EditableTextareaProps>(
   }, []);
 
   const handleSave = (): void => {
-    const currentIsPlaceholder = placeholder && value === placeholder;
     const newValueToSave = editValue.trim() ? editValue : (placeholder || '');
     
     if (onSave && newValueToSave !== value) {

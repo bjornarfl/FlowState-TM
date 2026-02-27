@@ -14,7 +14,7 @@ import {
   duplicateModelInBrowserStorage,
   SavedModel,
 } from '../../utils/browserStorage';
-import type { GitHubMetadata } from '../integrations/github/types';
+import type { GitHubMetadata } from '../../integrations/github/types';
 import './FileBrowser.css';
 
 interface FileBrowserProps {
@@ -55,7 +55,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
         setLoading(true);
         setError(null);
         try {
-          const availableTemplates = getAvailableTemplates();
+          const availableTemplates = await getAvailableTemplates();
           setTemplates(availableTemplates);
         } catch (err) {
           setError(
